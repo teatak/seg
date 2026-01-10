@@ -39,13 +39,16 @@ func (d *Dictionary) Load(path string) error {
 			continue
 		}
 		parts := strings.Fields(line)
-		if len(parts) < 2 {
-			continue
-		}
 		word := parts[0]
-		freq, err := strconv.ParseFloat(parts[1], 64)
-		if err != nil {
-			continue
+		freq := 1.0 // default
+		if len(parts) >= 2 {
+			f, err := strconv.ParseFloat(parts[1], 64)
+			if err == nil {
+				freq = f
+			}
+		} else {
+			// If it's a top-level word without frequency, give it a high default
+			freq = 20000.0
 		}
 		d.Words[word] = freq
 		d.Total += freq

@@ -10,13 +10,16 @@ import (
 	"github.com/teatak/seg/crf"
 	"github.com/teatak/seg/dictionary"
 	"github.com/teatak/seg/segmenter"
+	"github.com/teatak/seg/util"
 )
 
 func main() {
 	function := flag.String("func", "cut", "Segmentation function: cut (standard) or search (for search engine)")
 	mode := flag.String("mode", "hybrid", "Algorithm mode: hybrid (recommended), dag, or crf")
-	dictPath := flag.String("dict", "data/dictionary.txt", "Path to dictionary file")
-	modelPath := flag.String("model", "data/crf_model.txt", "Path to CRF model file")
+	basePath := flag.String("base", "data/dict_base.txt", "Path to base dictionary")
+	corePath := flag.String("core", "data/dict_core.txt", "Path to core dictionary")
+	userPath := flag.String("user", "data/dict_user.txt", "Path to user dictionary")
+	modelPath := flag.String("model", "data/model.crf", "Path to CRF model file")
 	flag.Parse()
 
 	// 1. Resolve Mode Constant
@@ -36,28 +39,23 @@ func main() {
 
 	// 2. Load Resources (Dict / Model) based on Algorithm Mode
 
-	// Load Dictionary
-	// Required for: hybrid, dag
-	// Optional for: crf
-	var dict *dictionary.Dictionary
-	if *mode != "crf" {
-		if !fileExists(*dictPath) {
-			fmt.Fprintf(os.Stderr, "Error: Dictionary file not found at %s. Required for mode '%s'.\n", *dictPath, *mode)
-			os.Exit(1)
-		}
-		dict = dictionary.NewDictionary()
-		if err := dict.Load(*dictPath); err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading dictionary: %v\n", err)
-			os.Exit(1)
-		}
-	} else {
-		// CRF mode
-		if fileExists(*dictPath) {
-			dict = dictionary.NewDictionary()
-			_ = dict.Load(*dictPath)
-		} else {
-			dict = dictionary.NewDictionary()
-		}
+	// 2. Load Resources (Dict / Model)
+	dict := dictionary.NewDictionary()
+
+	// Load hierarchical dictionaries in order: Core -> Base -> User
+	// (Last one loaded wins frequency and existence)
+	if util.FileExists(*corePath) {
+		dict.Load(*corePath)
+	}
+	if util.FileExists(*basePath) {
+		dict.Load(*basePath)
+	}
+	if util.FileExists(*userPath) {
+		dict.Load(*userPath)
+	}
+
+	if dict.Total == 0 && *mode != "crf" {
+		fmt.Fprintf(os.Stderr, "Warning: No dictionary loaded. Standard mode may be inaccurate.\n")
 	}
 
 	seg := segmenter.NewSegmenter(dict)
@@ -65,8 +63,8 @@ func main() {
 	// Load CRF Model
 	// Required for: crf
 	// Recommended for: hybrid
-	if *mode == "crf" || *mode == "hybrid" || fileExists(*modelPath) {
-		if fileExists(*modelPath) {
+	if *mode == "crf" || *mode == "hybrid" || util.FileExists(*modelPath) {
+		if util.FileExists(*modelPath) {
 			crfModel := crf.NewModel()
 			if err := crfModel.Load(*modelPath); err != nil {
 				fmt.Fprintf(os.Stderr, "Error loading CRF model: %v\n", err)
@@ -117,12 +115,4 @@ func main() {
 		result := process(text)
 		fmt.Println(strings.Join(result, " / "))
 	}
-}
-
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
 }
