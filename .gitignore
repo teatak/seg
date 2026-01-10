@@ -20,8 +20,6 @@
 .idea/
 .vscode/
 data/*.bak
-data/corpus.txt
-data/dict_user.txt
 data/server_new_words.txt
 data/temp_discovered.txt
 go.work
