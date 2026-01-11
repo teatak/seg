@@ -11,15 +11,47 @@
 - **动态更新**：词典实时热更新，无需重启
 - **Web 界面**：内置现代化 React 前端，支持可视化分词测试与管理
 
-## 🚀 快速开始
+## 📁 项目结构
+
+```
+seg/
+├── cmd/
+│   ├── server/           # HTTP 服务入口
+│   └── train_hmm/        # HMM 模型训练工具
+├── pkg/
+...
+└── data/
+    ├── dict/             # 词典文件
+    └── model/            # HMM 模型文件
+```
+
+### 方式一：直接运行 (Makefile)
+提供了便捷的 Makefile 指令：
 
 ```bash
-# 启动服务
+# 构建前端 + 后端
+make build
+
+# 运行服务 (访问 http://localhost:8080)
+make run
+
+# 仅训练 HMM 模型
+make train
+
+# 清理构建
+make clean
+```
+
+### 方式二：手动运行
+```bash
+# 启动服务 (自动加载 web/dist 静态资源)
 go run cmd/server/main.go
 
-# 访问 Web 界面
-open http://localhost:8080
+# 仅启动 API 服务 (不加载前端)
+go run cmd/server/main.go -web=false
 ```
+
+服务启动后，**API 接口** 与 **Web 界面** 均监听 `8080` 端口，实现真正的单体部署。
 ## 📦 组件调用 (Go)
 
 如果您希望在现有的 Go 项目中直接集成：
@@ -58,6 +90,26 @@ func main() {
 	}
 }
 ```
+
+## 📖 词典说明
+
+### 词典格式
+系统支持标准的文本词典格式，每行一个词条，字段间用空格或 Tab 分隔：
+
+```text
+词语 词频 [词性(可选)]
+```
+
+例如（系统会自动忽略第三列及之后的词性标注）：
+```text
+人工智能 100
+西塔 10 nr
+```
+
+### 词典文件
+- **基础词典** (`data/dict/base.txt`): 系统预置的核心词库。支持替换为 Jieba 等开源分词库的 `dict.txt`。
+- **用户词典** (`data/dict/user.txt`): 用户自定义词汇，优先级高于基础词典。
+- **暂存词典** (`data/dict/staging.txt`): 系统自动发现或新学习到的词汇。
 ## 📡 API 接口
 
 | 接口 | 方法 | 说明 |
@@ -115,25 +167,7 @@ curl -X POST http://localhost:8080/api/learn \
   }'
 ```
 
-## 📁 项目结构
 
-```
-seg/
-├── cmd/server/main.go    # HTTP 服务入口
-├── pkg/
-│   ├── dict/             # 词典模块
-│   │   ├── trie.go       # Trie 树
-│   │   └── dict.go       # 词典管理
-│   ├── seg/              # 分词模块
-│   │   ├── segmenter.go  # 分词器
-│   │   └── hmm.go        # HMM 模型
-│   └── learn/            # 自学习模块
-│       ├── miner.go      # 新词发现
-│       ├── feedback.go   # 反馈处理
-│       └── updater.go    # 词典更新
-└── data/
-    └── dict/base.txt     # 基础词典
-```
 
 ## 🧠 核心算法
 
@@ -144,8 +178,21 @@ seg/
 使用 Viterbi 算法，状态集 {B, M, E, S}，识别词典外的词语。
 
 ### 3. 新词发现
-- **互信息 (MI)**：衡量词语内部凝聚度
-- **左右熵**：衡量词语边界自由度
+- **统计挖掘**：基于互信息 (MI) 和左右熵衡量词语的内部凝聚度和边界自由度
+- **HMM 辅助**：利用 HMM 模型识别低频但构词合理的生僻词（如人名、机构名）
+- **混合策略**：结合统计指标与模型推断，提升召回率
+
+### 4. HMM 模型训练
+系统内置了通用的 HMM 参数，但也支持使用自定义语料进行训练以适应特定领域：
+
+1. 准备分词语料（空格分隔） `data/corpus.txt`
+   > 推荐使用：
+   > `https://storage.googleapis.com/chineseglue/chineseGLUEdatasets.v0.0.1.zip` (解压后取 `msraner/train1.txt`)
+2. 运行训练工具：
+   ```bash
+   go run cmd/train_hmm/main.go -corpus data/corpus.txt
+   ```
+3. 重启服务，系统将自动加载生成的 `data/model/hmm.json`。
 
 ### 4. 自学习流程
 ```

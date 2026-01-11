@@ -37,6 +37,7 @@ type Config struct {
 	StagingDict string
 	FeedbackDB  string
 	RequestLog  string
+	Frontend    bool
 }
 
 var engine *Engine
@@ -46,6 +47,7 @@ func main() {
 	// 解析命令行参数
 	flag.IntVar(&config.Port, "port", 8080, "HTTP server port")
 	flag.StringVar(&config.DataDir, "data", "./data", "Data directory")
+	flag.BoolVar(&config.Frontend, "web", true, "Enable web frontend")
 	flag.Parse()
 
 	// 初始化路径
@@ -77,7 +79,16 @@ func main() {
 	http.HandleFunc("/api/learn", handleLearn)
 	http.HandleFunc("/api/learn/requests", handleLearnFromRequests)
 	http.HandleFunc("/api/stats", handleStats)
-	http.HandleFunc("/", handleIndex)
+	// 静态文件服务
+	// 静态文件服务
+	if config.Frontend {
+		fs := http.FileServer(http.Dir("./web/dist"))
+		http.Handle("/", http.StripPrefix("/", fs))
+	} else {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "API Server Running (Web frontend disabled).")
+		})
+	}
 
 	addr := fmt.Sprintf(":%d", config.Port)
 	log.Printf("Server starting on http://localhost%s", addr)
@@ -93,7 +104,19 @@ func NewEngine(cfg Config) (*Engine, error) {
 	}
 
 	// 创建 HMM 模型
-	hmm := seg.NewDefaultHMM()
+	var hmm *seg.HMM
+	hmmFile := filepath.Join(cfg.DataDir, "model/hmm.json")
+	if _, err := os.Stat(hmmFile); err == nil {
+		hmm = seg.NewHMM()
+		if err := hmm.LoadFromFile(hmmFile); err != nil {
+			log.Printf("Warning: Failed to load HMM model from %s: %v. Using default.", hmmFile, err)
+			hmm = seg.NewDefaultHMM()
+		} else {
+			log.Printf("Loaded custom HMM model from %s", hmmFile)
+		}
+	} else {
+		hmm = seg.NewDefaultHMM()
+	}
 
 	// 创建分词器 (Dual instances)
 	prodSegmenter := seg.NewSegmenter(dictionary, hmm, false)
@@ -107,7 +130,8 @@ func NewEngine(cfg Config) (*Engine, error) {
 	miner := learn.NewMiner()
 
 	// 创建更新器
-	updater := learn.NewUpdater(dictionary, feedbackStore, miner)
+	// 创建更新器
+	updater := learn.NewUpdater(dictionary, feedbackStore, miner, evalSegmenter)
 
 	// 创建请求记录器
 	requestLogger := learn.NewRequestLogger(cfg.RequestLog)
@@ -564,8 +588,4 @@ func handleMergeDict(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"success": true})
-}
-
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "API Server Running. Please use the frontend application.")
 }

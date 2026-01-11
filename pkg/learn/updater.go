@@ -1,7 +1,10 @@
 package learn
 
 import (
+	"sort"
+
 	"github.com/teatak/seg/pkg/dict"
+	"github.com/teatak/seg/pkg/seg"
 )
 
 // Updater 词典更新器
@@ -9,6 +12,7 @@ type Updater struct {
 	dictionary    *dict.Dictionary
 	feedbackStore *FeedbackStore
 	miner         *Miner
+	segmenter     *seg.Segmenter
 
 	// 配置
 	minFeedbackCount int     // 新词最少需要的反馈次数
@@ -17,11 +21,12 @@ type Updater struct {
 }
 
 // NewUpdater 创建词典更新器
-func NewUpdater(d *dict.Dictionary, fs *FeedbackStore, m *Miner) *Updater {
+func NewUpdater(d *dict.Dictionary, fs *FeedbackStore, m *Miner, s *seg.Segmenter) *Updater {
 	return &Updater{
 		dictionary:       d,
 		feedbackStore:    fs,
 		miner:            m,
+		segmenter:        s,
 		minFeedbackCount: 1,
 		minScore:         1.0,
 		decayRate:        0.99,
@@ -154,7 +159,47 @@ func (u *Updater) AutoLearn(texts []string) UpdateResult {
 	}
 
 	// 挖掘新词（过滤已存在的）
+	// 挖掘新词（过滤已存在的）
 	candidates := u.miner.MineWithFilter(texts, existingWords)
+
+	// HMM 辅助发现：对文本进行分词，收集会被 HMM 识别出的词
+	if u.segmenter != nil {
+		hmmCounts := make(map[string]int)
+		for _, text := range texts {
+			tokens := u.segmenter.Segment(text)
+			for _, t := range tokens {
+				if t.Type == "hmm" && len([]rune(t.Word)) > 1 {
+					hmmCounts[t.Word]++
+				}
+			}
+		}
+
+		// 将 HMM 发现的词也加入候选列表 (如果统计挖掘没发现的话)
+		existingCandidates := make(map[string]bool)
+		for _, c := range candidates {
+			existingCandidates[c.Word] = true
+		}
+
+		for word, count := range hmmCounts {
+			if !existingCandidates[word] && !existingWords[word] {
+				// HMM 发现的词通常可信度较高，给一个基于频率的得分
+				score := float64(count) * 2.5 // 给予较高的权重
+				candidates = append(candidates, Candidate{
+					Word:         word,
+					Freq:         count,
+					MI:           0, // HMM 结果不依赖 MI
+					LeftEntropy:  0, // HMM 结果不依赖熵
+					RightEntropy: 0,
+					Score:        score,
+				})
+			}
+		}
+
+		// 重新排序
+		sort.Slice(candidates, func(i, j int) bool {
+			return candidates[i].Score > candidates[j].Score
+		})
+	}
 
 	// 更新词典
 	result := u.UpdateFromMiner(candidates)
