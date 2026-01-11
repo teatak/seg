@@ -11,6 +11,8 @@
 - **动态更新**：词典实时热更新，无需重启
 - **Web 界面**：内置现代化 React 前端，支持可视化分词测试与管理
 
+![Web Interface](assets/web_interface.png)
+
 ## 📁 项目结构
 
 ```
