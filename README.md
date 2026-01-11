@@ -97,7 +97,12 @@ func main() {
 
 #### 1. 标准库集成
 
+分词组件自带了一个 React 前端界面 (构建产物在 `web/dist`)。
+`RegisterFrontend` 方法会自动注册静态文件服务，并处理 SPA 路由 fallback，同时注入 `API_PREFIX` 配置。
+
 ```go
+package main
+
 import (
     "net/http"
     "github.com/teatak/seg/pkg/engine"
@@ -105,16 +110,19 @@ import (
 )
 
 func main() {
-    // 1. 初始化引擎
+    // 1. 初始化
     e, _ := engine.NewEngine(engine.Config{DataDir: "./data"})
-    
-    // 2. 创建 API 处理器
-    handler := api.NewHandler(e)
-
-    // 3. 注册路由 (支持自定义前缀，如 "/api")
+    h := api.NewHandler(e)
     mux := http.NewServeMux()
-    handler.RegisterRoutes(mux, "/api") 
+
+    // 2. 注册 API (建议使用 /api 前缀)
+    h.RegisterRoutes(mux, "/api")
+
+    // 3. 注册前端 (注册到根路径 "/")
+    // 并指定 API 前缀 "/api"，以便前端能正确请求
+    h.RegisterFrontend(mux, "./web/dist", "/api")
     
+    // 4. 启动服务
     http.ListenAndServe(":8080", mux)
 }
 ```
@@ -199,39 +207,7 @@ func main() {
     app.Run(":8080")
 }
 ```
-### 集成前端界面
 
-分词组件自带了一个 React 前端界面 (构建产物在 `web/dist`)。
-`RegisterFrontend` 方法会自动注册静态文件服务，并处理 SPA 路由 fallback，同时注入 `API_PREFIX` 配置。
-
-**完整集成示例**（同时包含 API 和 前端）：
-
-```go
-package main
-
-import (
-    "net/http"
-    "github.com/teatak/seg/pkg/engine"
-    "github.com/teatak/seg/pkg/api"
-)
-
-func main() {
-    // 1. 初始化
-    e, _ := engine.NewEngine(engine.Config{DataDir: "./data"})
-    h := api.NewHandler(e)
-    mux := http.NewServeMux()
-
-    // 2. 注册 API (建议使用 /api 前缀)
-    h.RegisterRoutes(mux, "/api")
-
-    // 3. 注册前端 (注册到根路径 "/")
-    // 并指定 API 前缀 "/api"，以便前端能正确请求
-    h.RegisterFrontend(mux, "./web/dist", "/api")
-    
-    // 4. 启动服务
-    http.ListenAndServe(":8080", mux)
-}
-```
 
 ## 📖 词典说明
 
