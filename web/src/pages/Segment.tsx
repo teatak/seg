@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, RotateCcw } from 'lucide-react';
+import { getApiPath } from '@/lib/api';
 
 interface Token { text: string; type: string }
 
@@ -17,7 +18,7 @@ export default function Segment() {
         setLoading(true);
         setMessage('');
         try {
-            const res = await fetch('/api/segment?mode=eval', {
+            const res = await fetch(getApiPath('segment?mode=eval'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text: input })
@@ -81,7 +82,7 @@ export default function Segment() {
     const submit = async () => {
         setLoading(true);
         try {
-            await fetch('/api/feedback', {
+            await fetch(getApiPath('feedback'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -90,7 +91,7 @@ export default function Segment() {
                     corrected_seg: tokens.map(t => t.text)
                 })
             });
-            await fetch('/api/learn', {
+            await fetch(getApiPath('learn'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'feedback' })

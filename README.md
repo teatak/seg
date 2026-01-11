@@ -91,6 +91,148 @@ func main() {
 }
 ```
 
+### 集成到现有 HTTP 服务 (Gin/Echo/Stdlib)
+
+系统提供了标准的 HTTP Handler，可以轻松注册到您现有的 Web 服务中。
+
+#### 1. 标准库集成
+
+```go
+import (
+    "net/http"
+    "github.com/teatak/seg/pkg/engine"
+    "github.com/teatak/seg/pkg/api"
+)
+
+func main() {
+    // 1. 初始化引擎
+    e, _ := engine.NewEngine(engine.Config{DataDir: "./data"})
+    
+    // 2. 创建 API 处理器
+    handler := api.NewHandler(e)
+
+    // 3. 注册路由 (支持自定义前缀，如 "/api")
+    mux := http.NewServeMux()
+    handler.RegisterRoutes(mux, "/api") 
+    
+    http.ListenAndServe(":8080", mux)
+}
+```
+
+#### 2. Gin 框架集成
+
+```go
+import (
+    "github.com/gin-gonic/gin"
+    "github.com/teatak/seg/pkg/engine"
+    "github.com/teatak/seg/pkg/api"
+)
+
+func main() {
+    // 1. 初始化引擎
+    e, _ := engine.NewEngine(engine.Config{DataDir: "./data"})
+    handler := api.NewHandler(e)
+
+    // 2. 创建标准 Mux 并注册路由
+    mux := http.NewServeMux()
+    handler.RegisterRoutes(mux, "/api")
+
+    // 3. 集成到 Gin
+    r := gin.Default()
+    
+    // 3.1 挂载 API (将 /api 请求转接给 seg API 处理器)
+    r.Any("/api/*path", gin.WrapH(mux))
+    
+    // 3.2 挂载前端 (处理静态资源和 SPA 路由)
+    // 使用一个新的 Mux 来专门处理前端，防止路由冲突
+    webMux := http.NewServeMux()
+    handler.RegisterFrontend(webMux, "./web/dist", "/api")
+    
+    // 使用 NoRoute 来接管所有未匹配的请求 (实现 SPA Fallback)
+    r.NoRoute(gin.WrapH(webMux))
+
+    r.Run(":8080")
+}
+```
+
+#### 3. Teatak Cart 框架集成
+
+对于 `teatak/cart` 框架，您需要一个简单的适配器将标准 `http.Handler` 转换为 `cart.Handler`：
+
+```go
+import (
+    "net/http"
+    "github.com/teatak/cart"
+    "github.com/teatak/seg/pkg/engine"
+    "github.com/teatak/seg/pkg/api"
+)
+
+func main() {
+    // 1. 初始化 Seg
+    e, _ := engine.NewEngine(engine.Config{DataDir: "./data"})
+    segHandler := api.NewHandler(e)
+    
+    mux := http.NewServeMux()
+    segHandler.RegisterRoutes(mux, "/api")
+
+    // 2. 初始化 Cart
+    app := cart.Default()
+
+    // 3. 定义适配器
+    wrap := func(h http.Handler) cart.Handler {
+        return func(c *cart.Context, next cart.Next) {
+            h.ServeHTTP(c.Response, c.Request)
+        }
+    }
+    
+    // 4. 注册 API 路由 (转发所有 /api/* 请求)
+    app.ANY("/api/*path", wrap(mux))
+    
+    // 5. 注册前端 (转发所有其他请求)
+    webMux := http.NewServeMux()
+    segHandler.RegisterFrontend(webMux, "./web/dist", "/api")
+    
+    // 注意：Cart 的通配符匹配顺序依赖于注册顺序或具体实现，
+    // 建议将根通配符放在最后，或确保 /api 优先匹配
+    app.ANY("/*path", wrap(webMux))
+    
+    app.Run(":8080")
+}
+```
+### 集成前端界面
+
+分词组件自带了一个 React 前端界面 (构建产物在 `web/dist`)。
+`RegisterFrontend` 方法会自动注册静态文件服务，并处理 SPA 路由 fallback，同时注入 `API_PREFIX` 配置。
+
+**完整集成示例**（同时包含 API 和 前端）：
+
+```go
+package main
+
+import (
+    "net/http"
+    "github.com/teatak/seg/pkg/engine"
+    "github.com/teatak/seg/pkg/api"
+)
+
+func main() {
+    // 1. 初始化
+    e, _ := engine.NewEngine(engine.Config{DataDir: "./data"})
+    h := api.NewHandler(e)
+    mux := http.NewServeMux()
+
+    // 2. 注册 API (建议使用 /api 前缀)
+    h.RegisterRoutes(mux, "/api")
+
+    // 3. 注册前端 (注册到根路径 "/")
+    // 并指定 API 前缀 "/api"，以便前端能正确请求
+    h.RegisterFrontend(mux, "./web/dist", "/api")
+    
+    // 4. 启动服务
+    http.ListenAndServe(":8080", mux)
+}
+```
+
 ## 📖 词典说明
 
 ### 词典格式
@@ -110,7 +252,10 @@ func main() {
 - **基础词典** (`data/dict/base.txt`): 系统预置的核心词库。支持替换为 Jieba 等开源分词库的 `dict.txt`。
 - **用户词典** (`data/dict/user.txt`): 用户自定义词汇，优先级高于基础词典。
 - **暂存词典** (`data/dict/staging.txt`): 系统自动发现或新学习到的词汇。
+
 ## 📡 API 接口
+
+> 注：下列接口路径中的 `/api` 前缀为默认值，可在注册路由时通过 `RegisterRoutes(mux, "/custom_prefix")` 自定义。
 
 | 接口 | 方法 | 说明 |
 |------|------|------|

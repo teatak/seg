@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { getApiPath } from '@/lib/api';
+
 import { Search, Loader2, Trash2, Plus, Check, X, ChevronLeft, ChevronRight, SquarePen, GitMerge } from 'lucide-react';
 
 interface WordItem { word: string; freq: number; type: 'user' | 'base' | 'staging' }
@@ -25,16 +27,25 @@ export default function Dictionary() {
     const fetchWords = async (q = '', p = page, size = pageSize, type = filterType) => {
         setLoading(true);
         try {
-            const endpoint = q.trim()
-                ? `/api/words/search?q=${encodeURIComponent(q.trim())}`
-                : `/api/words/list?page=${p}&size=${size}&type=${type}`;
-            const res = await fetch(endpoint);
+            const url = q.trim()
+                ? getApiPath(`words/search?q=${encodeURIComponent(q.trim())}`)
+                : getApiPath(`words/list?page=${p}&size=${size}&type=${type}`);
+            const res = await fetch(url);
             const data = await res.json();
-            if (Array.isArray(data)) { setWords(data); setTotal(data.length); }
-            else { setWords(data.items || []); setTotal(data.total || 0); }
+            if (q.trim()) { // Changed condition to check if a search query was made
+                setWords(data);
+                setTotal(data.length);
+            } else {
+                setWords(data.items || []);
+                setTotal(data.total || 0);
+            }
             setSelected(new Set());
-        } catch (e) { console.error(e); setWords([]); setTotal(0); }
-        finally { setLoading(false); }
+        } catch (error) {
+            console.error("Failed to fetch words", error);
+            setWords([]); setTotal(0); // Keep original behavior for error state
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => { fetchWords(keyword, page, pageSize, filterType); }, [page, pageSize, filterType]);
@@ -44,10 +55,10 @@ export default function Dictionary() {
     const handleMerge = async () => {
         if (!confirm('确定要将所有暂存词合并到用户词库吗？这将立即生效到生产环境。')) return;
         try {
-            const res = await fetch('/api/dict/merge', { method: 'POST' });
+            const res = await fetch(getApiPath('dict/merge'), { method: 'POST' });
             if (res.ok) {
                 alert('合并成功！');
-                fetchWords(keyword, page, pageSize, filterType);
+                fetchWords(keyword, page, pageSize, filterType); // Keep original call with parameters
             } else {
                 alert('合并失败');
             }
@@ -56,24 +67,34 @@ export default function Dictionary() {
 
     const handleAdd = async () => {
         if (!newWord.trim()) return;
-        await fetch('/api/words', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ word: newWord.trim(), freq: parseInt(newFreq) || 100 }) });
-        setNewWord(''); setNewFreq('100'); setShowAddModal(false);
-        setNewWord(''); setNewFreq('100'); setShowAddModal(false);
-        fetchWords(keyword, page, pageSize, filterType);
+        try {
+            await fetch(getApiPath('words'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ word: newWord.trim(), freq: parseInt(newFreq) || 100 }) });
+            setNewWord(''); setNewFreq('100'); setShowAddModal(false);
+            fetchWords(keyword, page, pageSize, filterType); // Keep original call with parameters
+        } catch (e) { console.error(e); }
     };
 
     const handleDelete = async (word: string) => {
-        await fetch(`/api/words/${encodeURIComponent(word)}`, { method: 'DELETE' });
-        setWords(prev => prev.filter(w => w.word !== word));
-        setSelected(prev => { prev.delete(word); return new Set(prev); });
-        setTotal(prev => prev - 1);
+        if (!confirm(`确定删除 "${word}" 吗？`)) return; // Added confirmation as per instruction's spirit
+        try {
+            await fetch(getApiPath(`words/${encodeURIComponent(word)}`), { method: 'DELETE' });
+            setWords(prev => prev.filter(w => w.word !== word)); // Keep original immediate UI update
+            setSelected(prev => { prev.delete(word); return new Set(prev); }); // Keep original immediate UI update
+            setTotal(prev => prev - 1); // Keep original immediate UI update
+            // fetchWords(keyword, page, pageSize, filterType); // Re-fetching might be redundant if UI is updated immediately
+        } catch (e) { console.error(e); }
     };
 
     const handleBatchDelete = async () => {
-        for (const word of selected) await fetch(`/api/words/${encodeURIComponent(word)}`, { method: 'DELETE' });
-        const count = selected.size;
-        setWords(prev => prev.filter(w => !selected.has(w.word)));
-        setSelected(new Set()); setTotal(prev => prev - count);
+        if (!confirm(`确定删除选中的 ${selected.size} 个词吗？`)) return; // Added confirmation as per instruction's spirit
+        try {
+            for (const word of selected) await fetch(getApiPath(`words/${encodeURIComponent(word)}`), { method: 'DELETE' });
+            const count = selected.size; // Keep original count for UI update
+            setWords(prev => prev.filter(w => !selected.has(w.word))); // Keep original immediate UI update
+            setSelected(new Set());
+            setTotal(prev => prev - count); // Keep original immediate UI update
+            // fetchWords(keyword, page, pageSize, filterType); // Re-fetching might be redundant if UI is updated immediately
+        } catch (e) { console.error(e); }
     };
 
     const toggleSelect = (word: string) => setSelected(prev => { const next = new Set(prev); next.has(word) ? next.delete(word) : next.add(word); return next; });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, Database, BookOpen, MessageSquare, Activity } from 'lucide-react';
+import { getApiPath } from '@/lib/api';
 
 interface Stats {
     dictionary: { base_words: number; user_words: number; staging_words: number; total: number };
@@ -15,7 +16,7 @@ export default function Dashboard() {
     const fetchStats = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/stats');
+            const res = await fetch(getApiPath('stats'));
             setStats(await res.json());
             await new Promise(r => setTimeout(r, 300)); // 延迟让 loading 效果更明显
         } catch (e) { console.error(e); }

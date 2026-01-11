@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Sparkles, Zap } from 'lucide-react';
+import { getApiPath } from '@/lib/api';
 
 interface Candidate { word: string; freq: number; score: number }
 interface MineResult { added_words?: string[]; mined_candidates?: number; source_texts?: number; candidates?: Candidate[] }
@@ -18,7 +19,7 @@ export default function Corpus() {
         setResult(null);
         try {
             const texts = corpus.split('\n').filter(t => t.trim());
-            const res = await fetch('/api/learn', {
+            const res = await fetch(getApiPath('learn'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type: 'corpus', texts })
@@ -32,7 +33,7 @@ export default function Corpus() {
         setAutoLoading(true);
         setAutoResult(null);
         try {
-            const res = await fetch('/api/learn/requests', { method: 'POST' });
+            const res = await fetch(getApiPath('learn/requests'), { method: 'POST' });
             setAutoResult(await res.json());
         } catch (e) { console.error(e); }
         finally { setAutoLoading(false); }
