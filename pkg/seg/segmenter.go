@@ -85,35 +85,38 @@ func (s *Segmenter) splitByPunctuation(text string) []textBlock {
 	for i < len(runes) {
 		r := runes[i]
 
-		// 标点、符号、空格
+		// 1. 标点、符号、空格 -> 直接切分
 		if unicode.IsPunct(r) || unicode.IsSymbol(r) || unicode.IsSpace(r) {
 			blocks = append(blocks, textBlock{text: string(r), isPunct: true})
 			i++
 			continue
 		}
 
-		// 连续英文字母或数字（混合也算整体，如 Python3, H2O）
-		if isEnglishLetter(r) || unicode.IsDigit(r) {
-			start := i
-			for i < len(runes) && (isEnglishLetter(runes[i]) || unicode.IsDigit(runes[i])) {
-				i++
-			}
-			blocks = append(blocks, textBlock{text: string(runes[start:i]), isPunct: false, isAlphaNum: true})
-			continue
-		}
-
-		// 其他字符（中文等），收集连续非特殊字符
+		// 2. 收集连续的内容 (直到遇到标点/符号/空格)
 		start := i
+		hasChinese := false
 		for i < len(runes) {
-			r := runes[i]
-			if unicode.IsPunct(r) || unicode.IsSymbol(r) || unicode.IsSpace(r) ||
-				isEnglishLetter(r) || unicode.IsDigit(r) {
+			curr := runes[i]
+			if unicode.IsPunct(curr) || unicode.IsSymbol(curr) || unicode.IsSpace(curr) {
 				break
+			}
+			if unicode.Is(unicode.Han, curr) {
+				hasChinese = true
 			}
 			i++
 		}
-		if i > start {
-			blocks = append(blocks, textBlock{text: string(runes[start:i]), isPunct: false})
+
+		content := string(runes[start:i])
+
+		// 3. 判断类型
+		if !hasChinese {
+			// 纯英文/数字 -> 标记为 isAlphaNum (不走分词，作为整体)
+			// 注意：这里简单判定非中文且非标点即为 AlphaNum，
+			// 实际上已经由外层循环过滤了标点，所以这里就是纯英文/数字/其他非中文文字
+			blocks = append(blocks, textBlock{text: content, isPunct: false, isAlphaNum: true})
+		} else {
+			// 包含中文 (如 "7天", "T恤", "我们") -> 走分词逻辑
+			blocks = append(blocks, textBlock{text: content, isPunct: false, isAlphaNum: false})
 		}
 	}
 
