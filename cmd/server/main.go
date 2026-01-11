@@ -80,10 +80,19 @@ func main() {
 	http.HandleFunc("/api/learn/requests", handleLearnFromRequests)
 	http.HandleFunc("/api/stats", handleStats)
 	// 静态文件服务
-	// 静态文件服务
 	if config.Frontend {
 		fs := http.FileServer(http.Dir("./web/dist"))
-		http.Handle("/", http.StripPrefix("/", fs))
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			// Check if file exists in web/dist
+			path := filepath.Join("./web/dist", r.URL.Path)
+			// If direct file or directory exists, let FileServer handle it
+			if _, err := os.Stat(path); err == nil {
+				fs.ServeHTTP(w, r)
+				return
+			}
+			// Otherwise serve index.html for SPA routing (e.g. /dictionary)
+			http.ServeFile(w, r, "./web/dist/index.html")
+		})
 	} else {
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "API Server Running (Web frontend disabled).")
