@@ -1,0 +1,36 @@
+# Binaries
+/server
+/bin/
+*.exe
+*.test
+*.out
+
+# OS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# Go
+vendor/
+go.work
+
+# Node / Web
+web/node_modules/
+web/dist/
+web/.env
+web/.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Project Data (Runtime generated)
+data/feedback.json
+data/requests.json
+data/dict/staging.txt
+# Keeping base.txt and user.txt in git as they might be seed data, 
+# but ignoring the ones that change frequently if desired. 
+# For now, let's only ignore the clearly transient ones.
