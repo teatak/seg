@@ -48,12 +48,12 @@ func main() {
 	// 静态文件服务 (可选)
 	if enableFrontend {
 		// 注册前端路由到 /console
-		handler.RegisterFrontend(mux, "./console/dist", "/api", "/web")
+		handler.RegisterFrontend(mux, "./console/dist", "/api", "/console")
 
 		// 根路径重定向到 /console
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/" {
-				http.Redirect(w, r, "/web/", http.StatusFound)
+				http.Redirect(w, r, "/console/", http.StatusFound)
 			} else {
 				http.NotFound(w, r)
 			}
