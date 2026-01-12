@@ -251,14 +251,16 @@ export default function Dictionary() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead className="w-[40px] px-2 text-center bg-muted">
-                                        <Checkbox
-                                            ref={checkboxRef}
-                                            checked={getCheckboxState() === 'all'}
-                                            // @ts-ignore
-                                            indeterminate={getCheckboxState() === 'indeterminate'}
-                                            onCheckedChange={(checked) => checked ? selectAll() : selectNone()}
-                                            disabled={selectableWords.length === 0}
-                                        />
+                                        <div className="flex items-center justify-center h-full">
+                                            <Checkbox
+                                                ref={checkboxRef}
+                                                checked={getCheckboxState() === 'all'}
+                                                // @ts-ignore
+                                                indeterminate={getCheckboxState() === 'indeterminate'}
+                                                onCheckedChange={(checked) => checked ? selectAll() : selectNone()}
+                                                disabled={selectableWords.length === 0}
+                                            />
+                                        </div>
                                     </TableHead>
                                     <TableHead className="bg-muted">词语</TableHead>
                                     <TableHead className="w-[100px] bg-muted">词频</TableHead>
@@ -283,10 +285,12 @@ export default function Dictionary() {
                                     <TableRow key={idx} className={selected.has(item.word) ? 'bg-primary/10 dark:bg-primary/20' : ''}>
                                         <TableCell className="px-2 py-2 text-center">
                                             {(item.type === 'user' || item.type === 'staging') &&
-                                                <Checkbox
-                                                    checked={selected.has(item.word)}
-                                                    onCheckedChange={() => toggleSelect(item.word)}
-                                                />
+                                                <div className="flex items-center justify-center h-full">
+                                                    <Checkbox
+                                                        checked={selected.has(item.word)}
+                                                        onCheckedChange={() => toggleSelect(item.word)}
+                                                    />
+                                                </div>
                                             }
                                         </TableCell>
                                         <TableCell className="font-medium py-2">{item.word}</TableCell>
