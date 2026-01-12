@@ -104,7 +104,10 @@ export default function Corpus() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-foreground">语料学习</h1>
+            <div>
+                <h1 className="text-2xl font-bold text-foreground">语料学习</h1>
+                <p className="text-sm text-muted-foreground mt-1">从语料和请求中自动发现新词</p>
+            </div>
 
             <div className="grid gap-6 md:grid-cols-2">
                 <Card>

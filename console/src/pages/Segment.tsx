@@ -130,7 +130,10 @@ export default function Segment() {
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-bold text-foreground">分词测试</h1>
+            <div>
+                <h1 className="text-2xl font-bold text-foreground">分词测试</h1>
+                <p className="text-sm text-muted-foreground mt-1">输入文本进行分词，可交互编辑结果并提交反馈</p>
+            </div>
 
             <Card>
                 <CardHeader>
@@ -204,7 +207,7 @@ export default function Segment() {
                             </div>
 
                             <div className="flex gap-2">
-                                <Button onClick={submit} disabled={loading} className="bg-green-600 hover:bg-green-700">
+                                <Button onClick={submit} disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500">
                                     ✅ 提交反馈
                                 </Button>
                             </div>

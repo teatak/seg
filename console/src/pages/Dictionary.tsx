@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,17 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
     Pagination,
     PaginationContent,
@@ -18,6 +29,7 @@ import {
     PaginationLink,
     PaginationNext,
     PaginationPrevious,
+    PaginationEllipsis,
 } from '@/components/ui/pagination';
 import {
     Table,
@@ -27,6 +39,13 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { getApiPath } from '@/lib/api';
 
 import { Search, Loader2, Trash2, Plus, Check, X, SquarePen, GitMerge } from 'lucide-react';
@@ -48,8 +67,29 @@ export default function Dictionary() {
     const [newFreq, setNewFreq] = useState('100');
     const [filterType, setFilterType] = useState<'all' | 'user' | 'base' | 'staging'>('user');
 
+    // 删除确认对话框状态
+    const [deleteTarget, setDeleteTarget] = useState<{ type: 'single' | 'batch'; word?: string } | null>(null);
+    const [mergeConfirmOpen, setMergeConfirmOpen] = useState(false);
+
     const selectableWords = words.filter(w => w.type === 'user' || w.type === 'staging');
     const totalPages = Math.ceil(total / pageSize);
+
+    // 计算 checkbox 状态
+    const getCheckboxState = () => {
+        if (selectableWords.length === 0) return 'none';
+        if (selected.size === 0) return 'none';
+        if (selected.size === selectableWords.length) return 'all';
+        return 'indeterminate';
+    };
+
+    const checkboxRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (checkboxRef.current) {
+            const state = getCheckboxState();
+            checkboxRef.current.dataset.state = state === 'indeterminate' ? 'indeterminate' : state === 'all' ? 'checked' : 'unchecked';
+        }
+    }, [selected, selectableWords]);
 
     const fetchWords = async (q = '', p = page, size = pageSize, type = filterType) => {
         setLoading(true);
@@ -80,16 +120,13 @@ export default function Dictionary() {
     const handleSearch = (e: React.FormEvent) => { e.preventDefault(); setPage(1); fetchWords(keyword, 1, pageSize, filterType); };
 
     const handleMerge = async () => {
-        if (!confirm('确定要将所有暂存词合并到用户词库吗？这将立即生效到生产环境。')) return;
+        setMergeConfirmOpen(false);
         try {
             const res = await fetch(getApiPath('dict/merge'), { method: 'POST' });
             if (res.ok) {
-                alert('合并成功！');
                 fetchWords(keyword, page, pageSize, filterType);
-            } else {
-                alert('合并失败');
             }
-        } catch (e) { console.error(e); alert('合并请求出错'); }
+        } catch (e) { console.error(e); }
     };
 
     const handleAdd = async () => {
@@ -102,17 +139,16 @@ export default function Dictionary() {
     };
 
     const handleDelete = async (word: string) => {
-        if (!confirm(`确定删除 "${word}" 吗？`)) return;
         try {
             await fetch(getApiPath(`words/${encodeURIComponent(word)}`), { method: 'DELETE' });
             setWords(prev => prev.filter(w => w.word !== word));
             setSelected(prev => { prev.delete(word); return new Set(prev); });
             setTotal(prev => prev - 1);
         } catch (e) { console.error(e); }
+        setDeleteTarget(null);
     };
 
     const handleBatchDelete = async () => {
-        if (!confirm(`确定删除选中的 ${selected.size} 个词吗？`)) return;
         try {
             for (const word of selected) await fetch(getApiPath(`words/${encodeURIComponent(word)}`), { method: 'DELETE' });
             const count = selected.size;
@@ -120,12 +156,12 @@ export default function Dictionary() {
             setSelected(new Set());
             setTotal(prev => prev - count);
         } catch (e) { console.error(e); }
+        setDeleteTarget(null);
     };
 
     const toggleSelect = (word: string) => setSelected(prev => { const next = new Set(prev); next.has(word) ? next.delete(word) : next.add(word); return next; });
     const selectAll = () => setSelected(new Set(selectableWords.map(w => w.word)));
     const selectNone = () => setSelected(new Set());
-    const selectInverse = () => { const s = new Set(selectableWords.map(w => w.word)); setSelected(prev => { const next = new Set<string>(); s.forEach(w => { if (!prev.has(w)) next.add(w); }); return next; }); };
 
     const startEdit = (word: string, freq: number) => { setEditingWord(word); setEditFreq(String(freq)); };
     const cancelEdit = () => { setEditingWord(null); setEditFreq(''); };
@@ -140,8 +176,9 @@ export default function Dictionary() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div>
                 <h1 className="text-2xl font-bold text-foreground">词库管理</h1>
+                <p className="text-sm text-muted-foreground mt-1">管理用户词库、暂存词库和基础词库</p>
             </div>
 
             <Card>
@@ -149,7 +186,7 @@ export default function Dictionary() {
                     {/* 顶部操作区 */}
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         {/* 筛选 Tabs */}
-                        <div className="flex bg-muted p-1 rounded-lg self-start">
+                        <div className="flex bg-muted p-1 rounded-xl self-start">
                             {[
                                 { id: 'all', label: '全部' },
                                 { id: 'user', label: '用户词库' },
@@ -159,9 +196,9 @@ export default function Dictionary() {
                                 <button
                                     key={tab.id}
                                     onClick={() => { setFilterType(tab.id as any); setPage(1); }}
-                                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${filterType === tab.id
-                                        ? 'bg-card text-foreground shadow-sm'
-                                        : 'text-muted-foreground hover:text-foreground'
+                                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${filterType === tab.id
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
                                         }`}
                                 >
                                     {tab.label}
@@ -172,13 +209,10 @@ export default function Dictionary() {
                         {/* 特殊操作按钮 */}
                         <div className="flex gap-2">
                             {filterType === 'staging' && (
-                                <Button onClick={handleMerge} className="bg-amber-500 hover:bg-amber-600 text-white">
+                                <Button onClick={() => setMergeConfirmOpen(true)} className="bg-amber-500 hover:bg-amber-600 text-white">
                                     <GitMerge className="w-4 h-4 mr-1" /> 归档到生产
                                 </Button>
                             )}
-                            <Button onClick={() => setShowAddModal(true)}>
-                                <Plus className="w-4 h-4 mr-1" /> 添加
-                            </Button>
                         </div>
                     </div>
 
@@ -194,21 +228,18 @@ export default function Dictionary() {
                             />
                         </div>
                         <Button type="submit">搜索</Button>
+                        <Button variant="outline" onClick={() => setShowAddModal(true)}>
+                            <Plus className="w-4 h-4 mr-1" /> 添加
+                        </Button>
                     </form>
 
-                    {/* 批量操作工具栏 */}
-                    <div className="flex items-center gap-2 text-xs">
-                        <Button variant="ghost" size="sm" onClick={selectAll} className="h-7 text-primary hover:text-primary hover:bg-primary/10">全选</Button>
-                        <Button variant="ghost" size="sm" onClick={selectNone} className="h-7 text-muted-foreground">取消</Button>
-                        <Button variant="ghost" size="sm" onClick={selectInverse} className="h-7 text-muted-foreground">反选</Button>
+                    {/* 批量操作工具栏 - checkbox 与表格内对齐 */}
+                    <div className="flex items-center text-xs h-7 px-2 gap-2">
+                        <span className="text-muted-foreground">已选 <b>{selected.size}</b></span>
                         {selected.size > 0 && (
-                            <>
-                                <span className="text-muted-foreground">|</span>
-                                <span className="text-muted-foreground">已选 <b>{selected.size}</b></span>
-                                <Button variant="ghost" size="sm" onClick={handleBatchDelete} className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10">
-                                    <Trash2 className="w-3 h-3 mr-1" /> 删除
-                                </Button>
-                            </>
+                            <Button variant="ghost" size="sm" onClick={() => setDeleteTarget({ type: 'batch' })} className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <Trash2 className="w-3 h-3 mr-1" /> 删除
+                            </Button>
                         )}
                     </div>
 
@@ -219,7 +250,10 @@ export default function Dictionary() {
                                 <TableRow>
                                     <TableHead className="w-[40px] px-2 text-center bg-muted">
                                         <Checkbox
-                                            checked={selectableWords.length > 0 && selected.size === selectableWords.length}
+                                            ref={checkboxRef}
+                                            checked={getCheckboxState() === 'all'}
+                                            // @ts-ignore
+                                            indeterminate={getCheckboxState() === 'indeterminate'}
                                             onCheckedChange={(checked) => checked ? selectAll() : selectNone()}
                                             disabled={selectableWords.length === 0}
                                         />
@@ -287,7 +321,7 @@ export default function Dictionary() {
                                                 ) : (
                                                     <div className="flex gap-1 justify-center">
                                                         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => startEdit(item.word, item.freq)}><SquarePen className="w-3.5 h-3.5" /></Button>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(item.word)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget({ type: 'single', word: item.word })}><Trash2 className="w-3.5 h-3.5" /></Button>
                                                     </div>
                                                 )
                                             )}
@@ -299,34 +333,90 @@ export default function Dictionary() {
                     </div>
 
                     {/* 分页 */}
-                    <div className="flex items-center justify-between text-xs pt-2">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <span>共 {total} 条</span>
-                            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="px-1 py-0.5 border border-border rounded cursor-pointer text-xs bg-background">
-                                <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option>
-                            </select>
-                            <span>条/页</span>
-                        </div>
+                    <div className="flex items-center justify-end text-xs pt-2">
                         <Pagination className="w-auto mx-0">
                             <PaginationContent>
                                 <PaginationItem>
+                                    <span className="text-muted-foreground mr-2">共 {total} 条</span>
+                                </PaginationItem>
+                                <PaginationItem>
+                                    <Select value={String(pageSize)} onValueChange={(value) => { setPageSize(Number(value)); setPage(1); }}>
+                                        <SelectTrigger size="sm" className="h-7 text-xs px-2 min-w-[60px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10</SelectItem>
+                                            <SelectItem value="20">20</SelectItem>
+                                            <SelectItem value="50">50</SelectItem>
+                                            <SelectItem value="100">100</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </PaginationItem>
+                                <PaginationItem>
+                                    <span className="text-muted-foreground mr-2">条/页</span>
+                                </PaginationItem>
+                                <PaginationItem>
                                     <PaginationPrevious
-                                        href="#"
                                         onClick={(e) => { e.preventDefault(); if (page > 1) setPage(p => p - 1); }}
-                                        className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                                        className={page <= 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                        aria-disabled={page <= 1}
                                     />
                                 </PaginationItem>
+                                {/* 第一页 */}
+                                {page > 2 && (
+                                    <PaginationItem>
+                                        <PaginationLink onClick={(e) => { e.preventDefault(); setPage(1); }} className="cursor-pointer">
+                                            1
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                )}
+                                {/* 左省略 */}
+                                {page > 3 && (
+                                    <PaginationItem>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                )}
+                                {/* 上一页 */}
+                                {page > 1 && (
+                                    <PaginationItem>
+                                        <PaginationLink onClick={(e) => { e.preventDefault(); setPage(page - 1); }} className="cursor-pointer">
+                                            {page - 1}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                )}
+                                {/* 当前页 */}
                                 <PaginationItem>
-                                    <PaginationLink href="#" isActive>{page}</PaginationLink>
+                                    <PaginationLink isActive className="cursor-default">
+                                        {page}
+                                    </PaginationLink>
                                 </PaginationItem>
-                                <PaginationItem>
-                                    <span className="text-muted-foreground">/ {totalPages || 1}</span>
-                                </PaginationItem>
+                                {/* 下一页 */}
+                                {page < totalPages && (
+                                    <PaginationItem>
+                                        <PaginationLink onClick={(e) => { e.preventDefault(); setPage(page + 1); }} className="cursor-pointer">
+                                            {page + 1}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                )}
+                                {/* 右省略 */}
+                                {page < totalPages - 2 && (
+                                    <PaginationItem>
+                                        <PaginationEllipsis />
+                                    </PaginationItem>
+                                )}
+                                {/* 最后一页 */}
+                                {page < totalPages - 1 && totalPages > 1 && (
+                                    <PaginationItem>
+                                        <PaginationLink onClick={(e) => { e.preventDefault(); setPage(totalPages); }} className="cursor-pointer">
+                                            {totalPages}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                )}
                                 <PaginationItem>
                                     <PaginationNext
-                                        href="#"
                                         onClick={(e) => { e.preventDefault(); if (page < totalPages) setPage(p => p + 1); }}
-                                        className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
+                                        className={page >= totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                                        aria-disabled={page >= totalPages}
                                     />
                                 </PaginationItem>
                             </PaginationContent>
@@ -335,6 +425,7 @@ export default function Dictionary() {
                 </CardContent>
             </Card>
 
+            {/* 添加新词对话框 */}
             <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
                 <DialogContent>
                     <DialogHeader>
@@ -369,6 +460,51 @@ export default function Dictionary() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div >
+
+            {/* 删除确认对话框 */}
+            <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deleteTarget?.type === 'single'
+                                ? `确定要删除词语 "${deleteTarget.word}" 吗？此操作无法撤销。`
+                                : `确定要删除选中的 ${selected.size} 个词语吗？此操作无法撤销。`
+                            }
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => deleteTarget?.type === 'single' && deleteTarget.word
+                                ? handleDelete(deleteTarget.word)
+                                : handleBatchDelete()
+                            }
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* 合并确认对话框 */}
+            <AlertDialog open={mergeConfirmOpen} onOpenChange={setMergeConfirmOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认归档</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要将所有暂存词合并到用户词库吗？这将立即生效到生产环境。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleMerge}>
+                            确认归档
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </div>
     );
 }
