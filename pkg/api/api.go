@@ -48,21 +48,24 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux, prefix string) {
 // RegisterFrontend 注册前端静态文件服务 (SPA模式)
 // distDir: 前端构建产物目录，例如 "./web/dist"
 // apiPrefix: API 前缀，例如 "/api"，将注入到前端页面中
-func (h *Handler) RegisterFrontend(mux *http.ServeMux, distDir string, apiPrefix string) {
+// urlPrefix: 前端访问 URL 前缀，例如 "/console"
+func (h *Handler) RegisterFrontend(mux *http.ServeMux, distDir string, apiPrefix string, urlPrefix string) {
 	fs := http.FileServer(http.Dir(distDir))
 
+	// 确保 urlPrefix 格式正确
+	if !strings.HasPrefix(urlPrefix, "/") {
+		urlPrefix = "/" + urlPrefix
+	}
+	urlPrefix = strings.TrimRight(urlPrefix, "/")
+
 	// 预加载并注入 index.html
-	// 注意：这里假设 index.html 存在且较小，适合缓存在内存中
-	// 如果需要热更，可以在 Handler 中每次读取
 	var indexContent []byte
 	// 简单的注入脚本
-	injectScript := fmt.Sprintf("<script>window.API_PREFIX = \"%s\";</script>", apiPrefix)
+	injectScript := fmt.Sprintf("<script>window.API_PREFIX = \"%s\"; window.ROUTER_BASE = \"%s\";</script>", apiPrefix, urlPrefix)
 
 	reloadIndex := func() {
 		content, err := os.ReadFile(filepath.Join(distDir, "index.html"))
 		if err == nil {
-			// 插入到 <head> 之后，或者 <body> 之前
-			// 简单起见，直接插入到 <head> 标签闭合前，如果没有则插入到 body 前
 			sContent := string(content)
 			if idx := strings.Index(sContent, "</head>"); idx != -1 {
 				sContent = sContent[:idx] + injectScript + sContent[idx:]
@@ -71,7 +74,6 @@ func (h *Handler) RegisterFrontend(mux *http.ServeMux, distDir string, apiPrefix
 			}
 			indexContent = []byte(sContent)
 		} else {
-			// 如果找不到文件，记录日志但不过分报错，可能尚未构建
 			log.Printf("Warning: index.html not found in %s, frontend might not work correctly until built.", distDir)
 			indexContent = nil
 		}
@@ -80,8 +82,10 @@ func (h *Handler) RegisterFrontend(mux *http.ServeMux, distDir string, apiPrefix
 	// 初始加载
 	reloadIndex()
 
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/")
+	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		// 去除前缀获取相对路径
+		path := strings.TrimPrefix(r.URL.Path, urlPrefix)
+		path = strings.TrimPrefix(path, "/")
 
 		// 如果请求的是 index.html 或者根路径，也返回注入后的内容
 		if path == "" || path == "index.html" {
@@ -103,7 +107,8 @@ func (h *Handler) RegisterFrontend(mux *http.ServeMux, distDir string, apiPrefix
 			defer f.Close()
 			stat, _ := f.Stat()
 			if !stat.IsDir() {
-				fs.ServeHTTP(w, r)
+				// 使用 StripPrefix 配合 FileServer
+				http.StripPrefix(urlPrefix, fs).ServeHTTP(w, r)
 				return
 			}
 		}
@@ -118,7 +123,21 @@ func (h *Handler) RegisterFrontend(mux *http.ServeMux, distDir string, apiPrefix
 		} else {
 			http.NotFound(w, r)
 		}
-	})
+	}
+
+	// 注册带前缀的所有路径
+	routePattern := urlPrefix + "/"
+	if urlPrefix == "" {
+		routePattern = "/"
+	}
+	mux.HandleFunc(routePattern, handlerFunc)
+
+	// 如果指定了前缀，且不是根路径，额外处理不带斜杠的情况（重定向）
+	if urlPrefix != "" && urlPrefix != "/" {
+		mux.HandleFunc(urlPrefix, func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, urlPrefix+"/", http.StatusFound)
+		})
+	}
 }
 
 // SegmentRequest 分词请求

@@ -47,7 +47,17 @@ func main() {
 
 	// 静态文件服务 (可选)
 	if enableFrontend {
-		handler.RegisterFrontend(mux, "./web/dist", "/api")
+		// 注册前端路由到 /console
+		handler.RegisterFrontend(mux, "./console/dist", "/api", "/web")
+
+		// 根路径重定向到 /console
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/" {
+				http.Redirect(w, r, "/web/", http.StatusFound)
+			} else {
+				http.NotFound(w, r)
+			}
+		})
 	} else {
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "API Server Running (Web frontend disabled).")

@@ -12,6 +12,7 @@
 - **Web 界面**：内置现代化 React 前端，支持可视化分词测试与管理
 
 ![Web Interface](assets/web_interface.png)
+（注：Web 界面代码现已移至 `console/` 目录，通过 `/console` 路径访问）
 
 ## 📁 项目结构
 
@@ -20,6 +21,7 @@ seg/
 ├── cmd/
 │   ├── server/           # HTTP 服务入口
 │   └── train_hmm/        # HMM 模型训练工具
+├── console/              # Web 控制台前端 (React)
 ├── pkg/
 ...
 └── data/
@@ -34,7 +36,7 @@ seg/
 # 构建前端 + 后端
 make build
 
-# 运行服务 (访问 http://localhost:8080)
+# 运行服务 (访问 http://localhost:8080/console)
 make run
 
 # 仅训练 HMM 模型
@@ -46,14 +48,15 @@ make clean
 
 ### 方式二：手动运行
 ```bash
-# 启动服务 (自动加载 web/dist 静态资源)
+# 启动服务 (自动加载 console/dist 静态资源)
 go run cmd/server/main.go
 
 # 仅启动 API 服务 (不加载前端)
 go run cmd/server/main.go -web=false
 ```
 
-服务启动后，**API 接口** 与 **Web 界面** 均监听 `8080` 端口，实现真正的单体部署。
+服务启动后，**Web 界面** 可通过 `http://localhost:8080/console` 访问（根路径 `/` 也会自动重定向至此）。
+**API 接口** 默认挂载在 `/api`。
 ## 📦 组件调用 (Go)
 
 ### 方式一：使用 `engine` 包（推荐）
@@ -141,8 +144,8 @@ func main() {
 
 #### 1. 标准库集成
 
-分词组件自带了一个 React 前端界面 (构建产物在 `web/dist`)。
-`RegisterFrontend` 方法会自动注册静态文件服务，并处理 SPA 路由 fallback，同时注入 `API_PREFIX` 配置。
+分词组件自带了一个 React 前端界面 (构建产物在 `console/dist`)。
+`RegisterFrontend` 方法会自动注册静态文件服务，并处理 SPA 路由 fallback，同时注入 `API_PREFIX` 配置。它可以指定 API 前缀和 Web 访问前缀（如 `/console`）。
 
 ```go
 package main
@@ -162,9 +165,9 @@ func main() {
     // 2. 注册 API (建议使用 /api 前缀)
     h.RegisterRoutes(mux, "/api")
 
-    // 3. 注册前端 (注册到根路径 "/")
-    // 并指定 API 前缀 "/api"，以便前端能正确请求
-    h.RegisterFrontend(mux, "./web/dist", "/api")
+    // 3. 注册前端 (此时挂载到 /console)
+    // 参数: mux, distDir, apiPrefix, urlPrefix
+    h.RegisterFrontend(mux, "./console/dist", "/api", "/console")
     
     // 4. 启动服务
     http.ListenAndServe(":8080", mux)
@@ -198,7 +201,11 @@ func main() {
     // 3.2 挂载前端 (处理静态资源和 SPA 路由)
     // 使用一个新的 Mux 来专门处理前端，防止路由冲突
     webMux := http.NewServeMux()
-    handler.RegisterFrontend(webMux, "./web/dist", "/api")
+    // 注册到 /console 前缀
+    handler.RegisterFrontend(webMux, "./console/dist", "/api", "/console")
+    
+    // 或者如果你想注册到根目录
+    // handler.RegisterFrontend(webMux, "./console/dist", "/api", "/")
     
     // 使用 NoRoute 来接管所有未匹配的请求 (实现 SPA Fallback)
     r.NoRoute(gin.WrapH(webMux))
@@ -242,7 +249,7 @@ func main() {
     
     // 5. 注册前端 (转发所有其他请求)
     webMux := http.NewServeMux()
-    segHandler.RegisterFrontend(webMux, "./web/dist", "/api")
+    segHandler.RegisterFrontend(webMux, "./console/dist", "/api", "/console")
     
     // 注意：Cart 的通配符匹配顺序依赖于注册顺序或具体实现，
     // 建议将根通配符放在最后，或确保 /api 优先匹配

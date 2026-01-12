@@ -7,9 +7,12 @@ import Corpus from '@/pages/Corpus';
 import Dictionary from '@/pages/Dictionary';
 
 function App() {
+  // @ts-ignore
+  const basename = window.ROUTER_BASE || '/';
+
   return (
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />

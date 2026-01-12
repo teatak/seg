@@ -24,7 +24,7 @@ build: build-web build-server
 # 构建前端
 build-web:
 	@echo "Building frontend..."
-	cd web && npm install && npm run build
+	cd console && npm install && npm run build
 
 # 构建后端
 build-server:
@@ -56,7 +56,7 @@ fmt:
 clean:
 	@echo "Cleaning up..."
 	rm -rf bin/
-	rm -rf web/dist/
+	rm -rf console/dist/
 	# 谨慎清理 node_modules，避免重复下载
-	# rm -rf web/node_modules/
+	# rm -rf console/node_modules/
 	go clean
