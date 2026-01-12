@@ -56,39 +56,81 @@ go run cmd/server/main.go -web=false
 服务启动后，**API 接口** 与 **Web 界面** 均监听 `8080` 端口，实现真正的单体部署。
 ## 📦 组件调用 (Go)
 
-如果您希望在现有的 Go 项目中直接集成：
+### 方式一：使用 `engine` 包（推荐）
+
+这是最简单的初始化方式，自动帮你管理词典、HMM 模型和路径配置。
 
 ```go
 package main
 
 import (
 	"fmt"
+	"github.com/teatak/seg/pkg/engine"
+)
 
+func main() {
+	// 1. 配置并初始化引擎
+	// DataDir 指定 data 目录即可，系统会自动寻找 dict/ 和 model/
+	cfg := engine.Config{
+		DataDir: "./data", 
+	}
+	
+	e, err := engine.NewEngine(cfg)
+	if err != nil {
+		panic(err)
+	}
+
+	// 2. 获取分词器
+	// ProdSegmenter: 生产环境分词器 (只使用 基础词典 + 用户词典)
+	// EvalSegmenter: 评估环境分词器 (额外加载 暂存词典，用于新词发现验证)
+	segmenter := e.ProdSegmenter
+
+	// 3. 使用
+	tokens := segmenter.Segment("组件初始化非常简单")
+	for _, t := range tokens {
+		fmt.Printf("%s\t[%s]\n", t.Word, t.Type)
+	}
+}
+```
+
+### 方式二：手动组装 `seg` 和 `dict` 包
+
+如果你不需要完整的 Engine 功能，可以手动一步步初始化，更精细地控制每个组件。
+
+```go
+package main
+
+import (
+	"fmt"
 	"github.com/teatak/seg/pkg/dict"
 	"github.com/teatak/seg/pkg/seg"
 )
 
 func main() {
-	// 1. 初始化词典 (基础词典 + 用户词典 + 暂存词典)
-	d := dict.NewDictionary("./data/dict/base.txt", "./data/dict/user.txt", "./data/dict/staging.txt")
+	// 1. 初始化词典 (参数分别为: 基础词典, 用户词典, 暂存词典)
+	d := dict.NewDictionary(
+		"./data/dict/base.txt", 
+		"./data/dict/user.txt", 
+		"./data/dict/staging.txt",
+	)
+	
+	// 务必记得 Load()
 	if err := d.Load(); err != nil {
 		panic(err)
 	}
 
-	// 2. 初始化 HMM 模型 (用于新词识别)
-	hmm := seg.NewDefaultHMM()
-
+	// 2. 初始化 HMM 模型 (用于识别未登录词)
+	// NewDefaultHMM() 使用内置概率参数
+	hmm := seg.NewDefaultHMM() 
+	
 	// 3. 创建分词器
-	// useStaging=true 表示启用暂存词典 (适合开发/评估模式)
+	// useStaging=true 表示启用暂存词典
 	segmenter := seg.NewSegmenter(d, hmm, true)
 
-	// 4. 执行分词
-	text := "人工智能正在改变世界"
-	tokens := segmenter.Segment(text)
-
-	// 5. 输出结果
-	for _, token := range tokens {
-		fmt.Printf("%s\t[%s]\n", token.Word, token.Type)
+	// 4. 使用
+	tokens := segmenter.Segment("你好世界")
+	for _, t := range tokens {
+		fmt.Printf("%s\t[%s]\n", t.Word, t.Type)
 	}
 }
 ```
