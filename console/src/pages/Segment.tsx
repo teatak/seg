@@ -102,8 +102,8 @@ export default function Segment() {
     };
 
     const getTokenClass = (type: string, idx: number) => {
-        const base = "px-3 py-1.5 text-base font-medium transition-all select-none ";
-        const baseSmall = "text-sm transition-all select-none flex items-center "; // 只读词用小字体，垂直居中
+        const base = "px-3 py-1.5 text-base font-medium select-none ";
+        const baseSmall = "text-sm select-none flex items-center "; // 只读词用小字体，垂直居中
         const isHighlight = hoverMerge === idx || hoverMerge === idx - 1;
         if (isHighlight) return base + "bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100";
         switch (type) {
