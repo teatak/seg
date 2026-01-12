@@ -358,8 +358,6 @@ curl -X POST http://localhost:8080/api/learn \
 系统内置了通用的 HMM 参数，但也支持使用自定义语料进行训练以适应特定领域：
 
 1. 准备分词语料（空格分隔） `data/corpus.txt`
-   > 推荐使用：
-   > `https://storage.googleapis.com/chineseglue/chineseGLUEdatasets.v0.0.1.zip` (解压后取 `msraner/train1.txt`)
 2. 运行训练工具：
    ```bash
    go run cmd/train_hmm/main.go -corpus data/corpus.txt
