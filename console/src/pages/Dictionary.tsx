@@ -206,8 +206,12 @@ export default function Dictionary() {
                             ))}
                         </div>
 
-                        {/* 特殊操作按钮 */}
                         <div className="flex gap-2">
+                            {filterType === 'user' && (
+                                <Button onClick={() => setShowAddModal(true)}>
+                                    <Plus className="w-4 h-4 mr-1" /> 添加新词
+                                </Button>
+                            )}
                             {filterType === 'staging' && (
                                 <Button onClick={() => setMergeConfirmOpen(true)} className="bg-amber-500 hover:bg-amber-600 text-white">
                                     <GitMerge className="w-4 h-4 mr-1" /> 归档到生产
@@ -228,9 +232,7 @@ export default function Dictionary() {
                             />
                         </div>
                         <Button type="submit">搜索</Button>
-                        <Button variant="outline" onClick={() => setShowAddModal(true)}>
-                            <Plus className="w-4 h-4 mr-1" /> 添加
-                        </Button>
+
                     </form>
 
                     {/* 批量操作工具栏 - checkbox 与表格内对齐 */}
