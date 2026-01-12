@@ -1,8 +1,35 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from '@/components/ui/pagination';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
 import { getApiPath } from '@/lib/api';
 
-import { Search, Loader2, Trash2, Plus, Check, X, ChevronLeft, ChevronRight, SquarePen, GitMerge } from 'lucide-react';
+import { Search, Loader2, Trash2, Plus, Check, X, SquarePen, GitMerge } from 'lucide-react';
 
 interface WordItem { word: string; freq: number; type: 'user' | 'base' | 'staging' }
 
@@ -32,7 +59,7 @@ export default function Dictionary() {
                 : getApiPath(`words/list?page=${p}&size=${size}&type=${type}`);
             const res = await fetch(url);
             const data = await res.json();
-            if (q.trim()) { // Changed condition to check if a search query was made
+            if (q.trim()) {
                 setWords(data);
                 setTotal(data.length);
             } else {
@@ -42,7 +69,7 @@ export default function Dictionary() {
             setSelected(new Set());
         } catch (error) {
             console.error("Failed to fetch words", error);
-            setWords([]); setTotal(0); // Keep original behavior for error state
+            setWords([]); setTotal(0);
         } finally {
             setLoading(false);
         }
@@ -58,7 +85,7 @@ export default function Dictionary() {
             const res = await fetch(getApiPath('dict/merge'), { method: 'POST' });
             if (res.ok) {
                 alert('合并成功！');
-                fetchWords(keyword, page, pageSize, filterType); // Keep original call with parameters
+                fetchWords(keyword, page, pageSize, filterType);
             } else {
                 alert('合并失败');
             }
@@ -70,30 +97,28 @@ export default function Dictionary() {
         try {
             await fetch(getApiPath('words'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ word: newWord.trim(), freq: parseInt(newFreq) || 100 }) });
             setNewWord(''); setNewFreq('100'); setShowAddModal(false);
-            fetchWords(keyword, page, pageSize, filterType); // Keep original call with parameters
+            fetchWords(keyword, page, pageSize, filterType);
         } catch (e) { console.error(e); }
     };
 
     const handleDelete = async (word: string) => {
-        if (!confirm(`确定删除 "${word}" 吗？`)) return; // Added confirmation as per instruction's spirit
+        if (!confirm(`确定删除 "${word}" 吗？`)) return;
         try {
             await fetch(getApiPath(`words/${encodeURIComponent(word)}`), { method: 'DELETE' });
-            setWords(prev => prev.filter(w => w.word !== word)); // Keep original immediate UI update
-            setSelected(prev => { prev.delete(word); return new Set(prev); }); // Keep original immediate UI update
-            setTotal(prev => prev - 1); // Keep original immediate UI update
-            // fetchWords(keyword, page, pageSize, filterType); // Re-fetching might be redundant if UI is updated immediately
+            setWords(prev => prev.filter(w => w.word !== word));
+            setSelected(prev => { prev.delete(word); return new Set(prev); });
+            setTotal(prev => prev - 1);
         } catch (e) { console.error(e); }
     };
 
     const handleBatchDelete = async () => {
-        if (!confirm(`确定删除选中的 ${selected.size} 个词吗？`)) return; // Added confirmation as per instruction's spirit
+        if (!confirm(`确定删除选中的 ${selected.size} 个词吗？`)) return;
         try {
             for (const word of selected) await fetch(getApiPath(`words/${encodeURIComponent(word)}`), { method: 'DELETE' });
-            const count = selected.size; // Keep original count for UI update
-            setWords(prev => prev.filter(w => !selected.has(w.word))); // Keep original immediate UI update
+            const count = selected.size;
+            setWords(prev => prev.filter(w => !selected.has(w.word)));
             setSelected(new Set());
-            setTotal(prev => prev - count); // Keep original immediate UI update
-            // fetchWords(keyword, page, pageSize, filterType); // Re-fetching might be redundant if UI is updated immediately
+            setTotal(prev => prev - count);
         } catch (e) { console.error(e); }
     };
 
@@ -147,147 +172,203 @@ export default function Dictionary() {
                         {/* 特殊操作按钮 */}
                         <div className="flex gap-2">
                             {filterType === 'staging' && (
-                                <button onClick={handleMerge} className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg cursor-pointer">
-                                    <GitMerge className="w-4 h-4" /> 归档到生产
-                                </button>
+                                <Button onClick={handleMerge} className="bg-amber-500 hover:bg-amber-600 text-white">
+                                    <GitMerge className="w-4 h-4 mr-1" /> 归档到生产
+                                </Button>
                             )}
-                            <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 cursor-pointer">
-                                <Plus className="w-4 h-4" /> 添加
-                            </button>
+                            <Button onClick={() => setShowAddModal(true)}>
+                                <Plus className="w-4 h-4 mr-1" /> 添加
+                            </Button>
                         </div>
                     </div>
 
                     {/* 搜索栏 */}
                     <form onSubmit={handleSearch} className="flex gap-2">
                         <div className="relative flex-1">
-                            <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-                            <input type="text" placeholder="搜索词语..." className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary"
-                                value={keyword} onChange={(e) => setKeyword(e.target.value)} />
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="搜索词语..."
+                                className="pl-8"
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                            />
                         </div>
-                        <button type="submit" className="px-3 py-1.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 cursor-pointer">搜索</button>
+                        <Button type="submit">搜索</Button>
                     </form>
 
                     {/* 批量操作工具栏 */}
                     <div className="flex items-center gap-2 text-xs">
-                        <button onClick={selectAll} className="px-2 py-0.5 text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded cursor-pointer">全选</button>
-                        <button onClick={selectNone} className="px-2 py-0.5 text-muted-foreground hover:bg-muted rounded cursor-pointer">取消</button>
-                        <button onClick={selectInverse} className="px-2 py-0.5 text-muted-foreground hover:bg-muted rounded cursor-pointer">反选</button>
+                        <Button variant="ghost" size="sm" onClick={selectAll} className="h-7 text-primary hover:text-primary hover:bg-primary/10">全选</Button>
+                        <Button variant="ghost" size="sm" onClick={selectNone} className="h-7 text-muted-foreground">取消</Button>
+                        <Button variant="ghost" size="sm" onClick={selectInverse} className="h-7 text-muted-foreground">反选</Button>
                         {selected.size > 0 && (
                             <>
                                 <span className="text-muted-foreground">|</span>
                                 <span className="text-muted-foreground">已选 <b>{selected.size}</b></span>
-                                <button onClick={handleBatchDelete} className="flex items-center gap-1 px-2 py-0.5 text-destructive hover:bg-destructive/10 rounded cursor-pointer">
-                                    <Trash2 className="w-3 h-3" /> 删除
-                                </button>
+                                <Button variant="ghost" size="sm" onClick={handleBatchDelete} className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10">
+                                    <Trash2 className="w-3 h-3 mr-1" /> 删除
+                                </Button>
                             </>
                         )}
                     </div>
 
                     {/* 紧凑表格 */}
                     <div className="border border-border rounded-lg overflow-hidden">
-                        <table className="w-full text-xs">
-                            <thead className="bg-muted">
-                                <tr>
-                                    <th className="px-2 py-2 text-left font-medium text-muted-foreground w-8">
-                                        <input type="checkbox" checked={selectableWords.length > 0 && selected.size === selectableWords.length} onChange={(e) => e.target.checked ? selectAll() : selectNone()} className="rounded cursor-pointer" />
-                                    </th>
-                                    <th className="px-2 py-2 text-left font-medium text-muted-foreground">词语</th>
-                                    <th className="px-2 py-2 text-left font-medium text-muted-foreground w-20">词频</th>
-                                    <th className="px-2 py-2 text-center font-medium text-muted-foreground w-16">类型</th>
-                                    <th className="px-2 py-2 text-center font-medium text-muted-foreground w-16">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border bg-card">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="w-[40px] px-2 text-center bg-muted">
+                                        <Checkbox
+                                            checked={selectableWords.length > 0 && selected.size === selectableWords.length}
+                                            onCheckedChange={(checked) => checked ? selectAll() : selectNone()}
+                                            disabled={selectableWords.length === 0}
+                                        />
+                                    </TableHead>
+                                    <TableHead className="bg-muted">词语</TableHead>
+                                    <TableHead className="w-[100px] bg-muted">词频</TableHead>
+                                    <TableHead className="w-[80px] text-center bg-muted">类型</TableHead>
+                                    <TableHead className="w-[100px] text-center bg-muted">操作</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {loading ? (
-                                    <tr><td colSpan={5} className="px-2 py-6 text-center text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin mx-auto" /></td></tr>
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center">
+                                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                                        </TableCell>
+                                    </TableRow>
                                 ) : words.length === 0 ? (
-                                    <tr><td colSpan={5} className="px-2 py-6 text-center text-muted-foreground">没有找到词语</td></tr>
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center">
+                                            没有找到词语
+                                        </TableCell>
+                                    </TableRow>
                                 ) : words.map((item, idx) => (
-                                    <tr key={idx} className={`hover:bg-muted ${selected.has(item.word) ? 'bg-primary/10 dark:bg-primary/20' : ''}`}>
-                                        <td className="px-2 py-1.5">{(item.type === 'user' || item.type === 'staging') && <input type="checkbox" checked={selected.has(item.word)} onChange={() => toggleSelect(item.word)} className="rounded cursor-pointer" />}</td>
-                                        <td className="px-2 py-1.5 font-medium">{item.word}</td>
-                                        <td className="px-2 py-1.5 text-muted-foreground">
+                                    <TableRow key={idx} className={selected.has(item.word) ? 'bg-primary/10 dark:bg-primary/20' : ''}>
+                                        <TableCell className="px-2 py-2 text-center">
+                                            {(item.type === 'user' || item.type === 'staging') &&
+                                                <Checkbox
+                                                    checked={selected.has(item.word)}
+                                                    onCheckedChange={() => toggleSelect(item.word)}
+                                                />
+                                            }
+                                        </TableCell>
+                                        <TableCell className="font-medium py-2">{item.word}</TableCell>
+                                        <TableCell className="py-2">
                                             {editingWord === item.word ? (
-                                                <input type="number" value={editFreq} onChange={(e) => setEditFreq(e.target.value)} className="w-16 px-1 py-0.5 text-xs text-foreground border border-primary rounded bg-card focus:ring-1 focus:ring-primary outline-none" autoFocus />
+                                                <Input
+                                                    type="number"
+                                                    value={editFreq}
+                                                    onChange={(e) => setEditFreq(e.target.value)}
+                                                    className="w-20 h-8 text-xs"
+                                                    autoFocus
+                                                />
                                             ) : (
-                                                <span>{item.freq}</span>
+                                                <span className="text-muted-foreground">{item.freq}</span>
                                             )}
-                                        </td>
-                                        <td className="px-2 py-1.5 text-center">
-                                            <span className={`inline-flex px-1.5 py-0.5 text-xs rounded ${item.type === 'user'
-                                                ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+                                        </TableCell>
+                                        <TableCell className="text-center py-2">
+                                            <span className={`inline-flex px-1.5 py-0.5 text-xs rounded border ${item.type === 'user'
+                                                ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                                                 : item.type === 'staging'
-                                                    ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300'
-                                                    : 'bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-300'
+                                                    ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                                    : 'bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
                                                 }`}>
                                                 {item.type === 'user' ? '用户' : item.type === 'staging' ? '暂存' : '基础'}
                                             </span>
-                                        </td>
-                                        <td className="px-2 py-1.5">
+                                        </TableCell>
+                                        <TableCell className="text-center py-2">
                                             {(item.type === 'user' || item.type === 'staging') && (
                                                 editingWord === item.word ? (
-                                                    <div className="flex gap-0.5 justify-around">
-                                                        <button onClick={saveEdit} className="p-0.5 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded cursor-pointer"><Check className="w-3 h-3" /></button>
-                                                        <button onClick={cancelEdit} className="p-0.5 text-muted-foreground hover:bg-muted rounded cursor-pointer"><X className="w-3 h-3" /></button>
+                                                    <div className="flex gap-1 justify-center">
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100" onClick={saveEdit}><Check className="w-3.5 h-3.5" /></Button>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:bg-muted" onClick={cancelEdit}><X className="w-3.5 h-3.5" /></Button>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex gap-0.5 justify-around">
-                                                        <button onClick={() => startEdit(item.word, item.freq)} className="p-0.5 text-muted-foreground hover:text-primary hover:bg-primary/10 dark:hover:bg-primary/20 rounded cursor-pointer"><SquarePen className="w-3 h-3" /></button>
-                                                        <button onClick={() => handleDelete(item.word)} className="p-0.5 text-destructive hover:bg-destructive/10 rounded cursor-pointer"><Trash2 className="w-3 h-3" /></button>
+                                                    <div className="flex gap-1 justify-center">
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => startEdit(item.word, item.freq)}><SquarePen className="w-3.5 h-3.5" /></Button>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(item.word)}><Trash2 className="w-3.5 h-3.5" /></Button>
                                                     </div>
                                                 )
                                             )}
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
                     </div>
 
                     {/* 分页 */}
-                    <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1 text-muted-foreground">
+                    <div className="flex items-center justify-between text-xs pt-2">
+                        <div className="flex items-center gap-2 text-muted-foreground">
                             <span>共 {total} 条</span>
-                            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="px-1 py-0.5 border border-border rounded cursor-pointer text-xs">
+                            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }} className="px-1 py-0.5 border border-border rounded cursor-pointer text-xs bg-background">
                                 <option value={10}>10</option><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option>
                             </select>
                             <span>条/页</span>
                         </div>
-                        <div className="flex items-center gap-0.5">
-                            <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} className="p-1 rounded hover:bg-muted disabled:opacity-30 cursor-pointer"><ChevronLeft className="w-4 h-4" /></button>
-                            <span className="px-2 text-muted-foreground">{page}/{totalPages || 1}</span>
-                            <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="p-1 rounded hover:bg-muted disabled:opacity-30 cursor-pointer"><ChevronRight className="w-4 h-4" /></button>
-                        </div>
+                        <Pagination className="w-auto mx-0">
+                            <PaginationContent>
+                                <PaginationItem>
+                                    <PaginationPrevious
+                                        href="#"
+                                        onClick={(e) => { e.preventDefault(); if (page > 1) setPage(p => p - 1); }}
+                                        className={page <= 1 ? "pointer-events-none opacity-50" : ""}
+                                    />
+                                </PaginationItem>
+                                <PaginationItem>
+                                    <PaginationLink href="#" isActive>{page}</PaginationLink>
+                                </PaginationItem>
+                                <PaginationItem>
+                                    <span className="text-muted-foreground">/ {totalPages || 1}</span>
+                                </PaginationItem>
+                                <PaginationItem>
+                                    <PaginationNext
+                                        href="#"
+                                        onClick={(e) => { e.preventDefault(); if (page < totalPages) setPage(p => p + 1); }}
+                                        className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
+                                    />
+                                </PaginationItem>
+                            </PaginationContent>
+                        </Pagination>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* 添加词语弹窗 */}
-            {
-                showAddModal && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowAddModal(false)}>
-                        <div className="bg-card rounded-xl shadow-xl p-6 w-80 space-y-4" onClick={e => e.stopPropagation()}>
-                            <h3 className="text-lg font-semibold text-foreground">添加新词</h3>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-1">词语</label>
-                                    <input type="text" placeholder="输入词语" className="w-full px-3 py-2 text-sm border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary"
-                                        value={newWord} onChange={(e) => setNewWord(e.target.value)} autoFocus />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-1">词频</label>
-                                    <input type="number" placeholder="100" className="w-full px-3 py-2 text-sm border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary"
-                                        value={newFreq} onChange={(e) => setNewFreq(e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                                <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm font-medium text-foreground bg-muted rounded-lg hover:bg-muted cursor-pointer">取消</button>
-                                <button onClick={handleAdd} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 cursor-pointer">添加</button>
-                            </div>
+            <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>添加新词</DialogTitle>
+                        <DialogDescription>
+                            添加到用户词库(User)中，优先级最高。
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <div className="space-y-1">
+                            <label className="text-sm font-medium">词语</label>
+                            <Input
+                                placeholder="输入词语"
+                                value={newWord}
+                                onChange={(e) => setNewWord(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-sm font-medium">词频</label>
+                            <Input
+                                type="number"
+                                placeholder="100"
+                                value={newFreq}
+                                onChange={(e) => setNewFreq(e.target.value)}
+                            />
                         </div>
                     </div>
-                )
-            }
+                    <DialogFooter>
+                        <Button variant="secondary" onClick={() => setShowAddModal(false)}>取消</Button>
+                        <Button onClick={handleAdd}>添加</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div >
     );
 }

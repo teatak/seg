@@ -1,5 +1,15 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea'
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
 import { Loader2, Sparkles, Zap } from 'lucide-react';
 import { getApiPath } from '@/lib/api';
 
@@ -56,23 +66,23 @@ export default function Corpus() {
                 {data.candidates && data.candidates.length > 0 && (
                     <div className="mt-3">
                         <p className="text-xs text-muted-foreground mb-2">候选词详情：</p>
-                        <div className="max-h-40 overflow-auto">
-                            <table className="w-full text-xs">
-                                <thead className="bg-muted">
-                                    <tr>
-                                        <th className="px-2 py-1 text-left">词语</th>
-                                        <th className="px-2 py-1 text-center">频率</th>
-                                        <th className="px-2 py-1 text-center">得分</th>
-                                        <th className="px-2 py-1 text-center">状态</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                        <div className="max-h-40 overflow-auto border rounded-md bg-background">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[100px]">词语</TableHead>
+                                        <TableHead className="text-center">频率</TableHead>
+                                        <TableHead className="text-center">得分</TableHead>
+                                        <TableHead className="text-center">状态</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                     {data.candidates.map((c, i) => (
-                                        <tr key={i} className="border-t border-border">
-                                            <td className="px-2 py-1">{c.word}</td>
-                                            <td className="px-2 py-1 text-center">{c.freq}</td>
-                                            <td className="px-2 py-1 text-center">{c.score.toFixed(2)}</td>
-                                            <td className="px-2 py-1 text-center">
+                                        <TableRow key={i}>
+                                            <TableCell className="font-medium">{c.word}</TableCell>
+                                            <TableCell className="text-center">{c.freq}</TableCell>
+                                            <TableCell className="text-center">{c.score.toFixed(2)}</TableCell>
+                                            <TableCell className="text-center">
                                                 {data.added_words?.includes(c.word) ? (
                                                     <span className="text-emerald-600 dark:text-emerald-400">✅</span>
                                                 ) : c.score < 1.0 ? (
@@ -80,11 +90,11 @@ export default function Corpus() {
                                                 ) : (
                                                     <span className="text-muted-foreground">-</span>
                                                 )}
-                                            </td>
-                                        </tr>
+                                            </TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     </div>
                 )}
@@ -103,16 +113,15 @@ export default function Corpus() {
                         <p className="text-sm text-muted-foreground">输入多行文本，自动发现新词</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <textarea
-                            className="w-full p-3 border border-border bg-card rounded-lg resize-none focus:ring-2 focus:ring-primary outline-none"
+                        <Textarea
                             rows={6}
                             placeholder="每行一段文本..."
                             value={corpus}
                             onChange={(e) => setCorpus(e.target.value)}
                         />
-                        <button onClick={mineCorpus} disabled={loading || !corpus.trim()} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 cursor-pointer">
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} 自动发现新词
-                        </button>
+                        <Button onClick={mineCorpus} disabled={loading || !corpus.trim()}>
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />} 自动发现新词
+                        </Button>
                         <ResultDisplay data={result} title="挖掘结果" />
                     </CardContent>
                 </Card>
@@ -124,9 +133,9 @@ export default function Corpus() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-sm text-muted-foreground">系统会自动记录用户的分词请求，积累到一定量后可触发新词挖掘。</p>
-                        <button onClick={triggerAutoLearn} disabled={autoLoading} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 cursor-pointer">
-                            {autoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 立即从请求学习
-                        </button>
+                        <Button onClick={triggerAutoLearn} disabled={autoLoading}>
+                            {autoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />} 立即从请求学习
+                        </Button>
                         <ResultDisplay data={autoResult} title="学习结果" />
                     </CardContent>
                 </Card>

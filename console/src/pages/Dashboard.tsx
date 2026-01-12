@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { RefreshCw, Database, BookOpen, MessageSquare, Activity } from 'lucide-react';
 import { getApiPath } from '@/lib/api';
 
@@ -41,9 +42,9 @@ export default function Dashboard() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-foreground">首页</h1>
-                <button onClick={fetchStats} disabled={loading} className="flex items-center gap-2 px-3 py-2 text-sm bg-card border border-border rounded-lg hover:bg-muted cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+                <Button variant="outline" onClick={fetchStats} disabled={loading} className="gap-2">
                     <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 刷新
-                </button>
+                </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">

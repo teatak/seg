@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from "@/components/ui/textarea"
 import { Loader2, RotateCcw } from 'lucide-react';
 import { getApiPath } from '@/lib/api';
 
@@ -136,21 +138,20 @@ export default function Segment() {
                     <p className="text-sm text-muted-foreground">词语之间悬浮可合并，双击词语可在点击位置拆分</p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <textarea
-                        className="w-full p-3 border border-border dark:bg-card rounded-lg resize-none focus:ring-2 focus:ring-primary outline-none"
+                    <Textarea
                         rows={3}
                         placeholder="请输入要分词的中文文本..."
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                     />
                     <div className="flex gap-2">
-                        <button onClick={segment} disabled={loading} className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 disabled:opacity-50 cursor-pointer">
+                        <Button onClick={segment} disabled={loading}>
                             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : '🔍 分词'}
-                        </button>
+                        </Button>
                         {tokens.length > 0 && (
-                            <button onClick={reset} className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-secondary-foreground bg-secondary rounded-lg hover:bg-secondary/80 cursor-pointer">
-                                <RotateCcw className="w-4 h-4" /> 重置
-                            </button>
+                            <Button variant="secondary" onClick={reset}>
+                                <RotateCcw className="w-4 h-4 mr-1" /> 重置
+                            </Button>
                         )}
                     </div>
 
@@ -203,9 +204,9 @@ export default function Segment() {
                             </div>
 
                             <div className="flex gap-2">
-                                <button onClick={submit} disabled={loading} className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 cursor-pointer">
+                                <Button onClick={submit} disabled={loading} className="bg-green-600 hover:bg-green-700">
                                     ✅ 提交反馈
-                                </button>
+                                </Button>
                             </div>
 
                             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">

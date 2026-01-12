@@ -1,7 +1,20 @@
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Scissors, Library, Database } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { ThemeToggle } from './ThemeToggle';
+import {
+    Sidebar,
+    SidebarContent,
+    SidebarFooter,
+    SidebarHeader,
+    SidebarProvider,
+    SidebarTrigger,
+    SidebarInset,
+    SidebarMenu,
+    SidebarMenuItem,
+    SidebarMenuButton,
+    SidebarGroup,
+    SidebarGroupContent,
+} from "@/components/ui/sidebar"
 
 export default function Layout() {
     const location = useLocation();
@@ -14,45 +27,59 @@ export default function Layout() {
     ];
 
     return (
-        <div className="flex h-screen bg-background">
-            <aside className="w-60 bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col">
-                <div className="p-5 border-b border-sidebar-border">
+        <SidebarProvider>
+            <Sidebar>
+                <SidebarHeader className="border-b border-sidebar-border p-5">
                     <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">
                         🧠 自学习分词系统
                     </h1>
-                </div>
-                <nav className="flex-1 p-3 space-y-1">
-                    {navItems.map((item) => {
-                        const isActive = location.pathname === item.path;
-                        const Icon = item.icon;
-                        return (
-                            <Link
-                                key={item.path}
-                                to={item.path}
-                                className={cn(
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                                    isActive
-                                        ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                                )}
-                            >
-                                <Icon className="w-4 h-4" />
-                                {item.name}
-                            </Link>
-                        );
-                    })}
-                </nav>
-                <div className="p-3 border-t border-sidebar-border flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">v1.0.0</span>
-                    <ThemeToggle />
-                </div>
-            </aside>
+                </SidebarHeader>
+                <SidebarContent>
+                    <SidebarGroup>
+                        <SidebarGroupContent>
+                            <SidebarMenu>
+                                {navItems.map((item) => {
+                                    const isActive = location.pathname === item.path;
+                                    const Icon = item.icon;
+                                    return (
+                                        <SidebarMenuItem key={item.path}>
+                                            <SidebarMenuButton
+                                                asChild
+                                                isActive={isActive}
+                                                tooltip={item.name}
+                                                size="lg"
+                                            >
+                                                <Link to={item.path}>
+                                                    <Icon />
+                                                    <span>{item.name}</span>
+                                                </Link>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    );
+                                })}
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                </SidebarContent>
+                <SidebarFooter className="border-t border-sidebar-border p-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground ml-2">v1.0.0</span>
+                        <ThemeToggle />
+                    </div>
+                </SidebarFooter>
+            </Sidebar>
 
-            <main className="flex-1 overflow-auto">
-                <div className="p-6 max-w-6xl mx-auto">
-                    <Outlet />
+            <SidebarInset>
+                <header className="flex h-16 items-center gap-2 border-b px-4 md:hidden">
+                    <SidebarTrigger />
+                    <span className="font-semibold">自学习分词系统</span>
+                </header>
+                <div className="flex-1 overflow-auto p-6">
+                    <div className="max-w-6xl mx-auto">
+                        <Outlet />
+                    </div>
                 </div>
-            </main>
-        </div>
+            </SidebarInset>
+        </SidebarProvider>
     );
 }
