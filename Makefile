@@ -37,6 +37,11 @@ run:
 	@echo "Running server..."
 	go run cmd/server/main.go
 
+# 运行 Cart 版本服务
+run-cart:
+	@echo "Running Cart server..."
+	go run cmd/cart/main.go
+
 # 训练 HMM 模型 (使用示例语料)
 train:
 	@echo "Training HMM model..."

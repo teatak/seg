@@ -216,46 +216,70 @@ func main() {
 
 #### 3. Teatak Cart 框架集成
 
-对于 `teatak/cart` 框架，您需要一个简单的适配器将标准 `http.Handler` 转换为 `cart.Handler`：
+对于 `teatak/cart` 框架，您需要一个简单的适配器将标准 `http.Handler` 转换为 `cart.Handler`。
+本项目已提供了一个完整的 Cart 实现版本，位于 `cmd/cart/main.go`。
+
+运行方式：
+```bash
+make run-cart
+```
+
+集成代码示例：
 
 ```go
+package main
+
 import (
-    "net/http"
-    "github.com/teatak/cart"
-    "github.com/teatak/seg/pkg/engine"
-    "github.com/teatak/seg/pkg/api"
+	"log"
+	"net/http"
+
+	"github.com/teatak/cart"
+	"github.com/teatak/seg/pkg/api"
+	"github.com/teatak/seg/pkg/engine"
 )
 
 func main() {
-    // 1. 初始化 Seg
-    e, _ := engine.NewEngine(engine.Config{DataDir: "./data"})
-    segHandler := api.NewHandler(e)
-    
-    mux := http.NewServeMux()
-    segHandler.RegisterRoutes(mux, "/api")
+	// 1. 初始化 Seg
+	e, _ := engine.NewEngine(engine.Config{DataDir: "./data"})
+	handler := api.NewHandler(e)
+	
+	// 2. 初始化 Cart
+	app := cart.Default()
 
-    // 2. 初始化 Cart
-    app := cart.Default()
+	// 适配器: http.Handler -> cart.Handler
+	wrap := func(h http.Handler) cart.Handler {
+		return func(c *cart.Context, next cart.Next) {
+			h.ServeHTTP(c.Response, c.Request)
+			next()
+		}
+	}
 
-    // 3. 定义适配器
-    wrap := func(h http.Handler) cart.Handler {
-        return func(c *cart.Context, next cart.Next) {
-            h.ServeHTTP(c.Response, c.Request)
-        }
-    }
+	// 3. 注册 API 路由
+	apiMux := http.NewServeMux()
+	handler.RegisterRoutes(apiMux, "/api")
+	
+	app.Route("/api/*path", func(r *cart.Router) {
+		r.ANY(wrap(apiMux))
+	})
+	
+	// 4. 注册前端 (挂载到 /console)
+	webMux := http.NewServeMux()
+	handler.RegisterFrontend(webMux, "./console/dist", "/api", "/console")
+	
+	app.Route("/console/*path", func(r *cart.Router) {
+		r.ANY(wrap(webMux))
+	})
+	
+	// 5. 根路径重定向
+	app.Route("/", func(r *cart.Router) {
+		r.GET(func(c *cart.Context) {
+			c.Redirect(http.StatusFound, "/console/")
+		})
+	})
     
-    // 4. 注册 API 路由 (转发所有 /api/* 请求)
-    app.ANY("/api/*path", wrap(mux))
-    
-    // 5. 注册前端 (转发所有其他请求)
-    webMux := http.NewServeMux()
-    segHandler.RegisterFrontend(webMux, "./console/dist", "/api", "/console")
-    
-    // 注意：Cart 的通配符匹配顺序依赖于注册顺序或具体实现，
-    // 建议将根通配符放在最后，或确保 /api 优先匹配
-    app.ANY("/*path", wrap(webMux))
-    
-    app.Run(":8080")
+	if _, err := app.Run(":8080"); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
