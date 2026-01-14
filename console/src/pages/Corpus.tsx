@@ -111,11 +111,10 @@ export default function Corpus() {
 
             <div className="grid gap-6 md:grid-cols-2">
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Sparkles className="w-5 h-5 text-purple-500" /> 语料新词挖掘</CardTitle>
-                        <p className="text-sm text-muted-foreground">输入多行文本，自动发现新词</p>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-base"><Sparkles className="w-4 h-4 text-purple-500" /> 语料新词挖掘</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="p-3 md:p-6 space-y-4">
                         <Textarea
                             rows={6}
                             placeholder="每行一段文本..."
@@ -130,11 +129,10 @@ export default function Corpus() {
                 </Card>
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Zap className="w-5 h-5 text-amber-500" /> 请求语料学习</CardTitle>
-                        <p className="text-sm text-muted-foreground">从历史分词请求中自动挖掘新词</p>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="flex items-center gap-2 text-base"><Zap className="w-4 h-4 text-amber-500" /> 请求语料学习</CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="p-3 md:p-6 space-y-4">
                         <p className="text-sm text-muted-foreground">系统会自动记录用户的分词请求，积累到一定量后可触发新词挖掘。</p>
                         <Button onClick={triggerAutoLearn} disabled={autoLoading}>
                             {autoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />} 立即从请求学习

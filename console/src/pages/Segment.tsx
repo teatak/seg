@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useRef } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, RotateCcw } from 'lucide-react';
@@ -14,6 +14,9 @@ export default function Segment() {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [hoverMerge, setHoverMerge] = useState<number | null>(null);
+
+    // 触摸双击检测
+    const lastTapRef = useRef<{ time: number; idx: number; x: number }>({ time: 0, idx: -1, x: 0 });
 
     const segment = async () => {
         if (!input.trim()) return;
@@ -79,6 +82,34 @@ export default function Segment() {
         }
     };
 
+    // 处理触摸双击（移动端）
+    const handleTouchEnd = (idx: number, e: React.TouchEvent<HTMLSpanElement>) => {
+        const token = tokens[idx];
+        if (token.type === 'alphanum' || token.type === 'punct' || token.text.length <= 1) return;
+
+        const touch = e.changedTouches[0];
+        const now = Date.now();
+        const lastTap = lastTapRef.current;
+
+        // 检测双击：同一个词，300ms 内
+        if (lastTap.idx === idx && now - lastTap.time < 300) {
+            // 执行拆分
+            const span = e.currentTarget;
+            const rect = span.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const charWidth = rect.width / token.text.length;
+            const charIndex = Math.round(x / charWidth);
+
+            if (charIndex > 0 && charIndex < token.text.length) {
+                splitAt(idx, charIndex);
+            }
+            lastTapRef.current = { time: 0, idx: -1, x: 0 };
+        } else {
+            // 记录第一次点击
+            lastTapRef.current = { time: now, idx, x: touch.clientX };
+        }
+    };
+
     const reset = () => { setTokens([...originalTokens]); setMessage(''); setHoverMerge(null); };
 
     const submit = async () => {
@@ -132,15 +163,11 @@ export default function Segment() {
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold text-foreground">分词测试</h1>
-                <p className="text-sm text-muted-foreground mt-1">输入文本进行分词，可交互编辑结果并提交反馈</p>
+                <p className="text-sm text-muted-foreground mt-1">词语之间悬浮可合并，双击词语可在点击位置拆分</p>
             </div>
 
             <Card>
-                <CardHeader>
-                    <CardTitle>交互式分词编辑</CardTitle>
-                    <p className="text-sm text-muted-foreground">词语之间悬浮可合并，双击词语可在点击位置拆分</p>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="p-3 md:p-6 space-y-4">
                     <Textarea
                         rows={3}
                         placeholder="请输入要分词的中文文本..."
@@ -173,6 +200,7 @@ export default function Segment() {
                                         <span
                                             className={`${getTokenClass(token.type, idx)} ${getRoundedClass(idx)} ${token.type !== 'alphanum' && token.type !== 'punct' && token.text.length > 1 ? 'cursor-pointer' : ''}`}
                                             onDoubleClick={(e) => handleDoubleClick(idx, e)}
+                                            onTouchEnd={(e) => handleTouchEnd(idx, e)}
                                         >
                                             {token.text}
                                         </span>

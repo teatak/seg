@@ -178,11 +178,10 @@ export default function Dictionary() {
         <div className="space-y-4">
             <div>
                 <h1 className="text-2xl font-bold text-foreground">词库管理</h1>
-                <p className="text-sm text-muted-foreground mt-1">管理用户词库、暂存词库和基础词库</p>
             </div>
 
             <Card>
-                <CardContent className="pt-4 space-y-3">
+                <CardContent className="pt-3 px-3 pb-3 md:pt-4 md:px-6 md:pb-4 space-y-3">
                     {/* 顶部操作区 */}
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         {/* 筛选 Tabs */}
@@ -245,8 +244,105 @@ export default function Dictionary() {
                         )}
                     </div>
 
-                    {/* 紧凑表格 */}
-                    <div className="border border-border rounded-lg overflow-hidden">
+                    {/* 移动端卡片视图 */}
+                    <div className="md:hidden space-y-2">
+                        {loading ? (
+                            <div className="h-24 flex items-center justify-center">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            </div>
+                        ) : words.length === 0 ? (
+                            <div className="h-24 flex items-center justify-center text-muted-foreground">
+                                没有找到词语
+                            </div>
+                        ) : words.map((item, idx) => (
+                            <div
+                                key={idx}
+                                className={`border border-border rounded-lg p-3 ${selected.has(item.word) ? 'bg-primary/10 dark:bg-primary/20 border-primary/50' : ''}`}
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                        {(item.type === 'user' || item.type === 'staging') && (
+                                            <Checkbox
+                                                checked={selected.has(item.word)}
+                                                onCheckedChange={() => toggleSelect(item.word)}
+                                            />
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                            <div className="font-medium truncate">{item.word}</div>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                {editingWord === item.word ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-muted-foreground">词频:</span>
+                                                        <Input
+                                                            type="number"
+                                                            value={editFreq}
+                                                            onChange={(e) => setEditFreq(e.target.value)}
+                                                            className="w-20 h-7 text-xs"
+                                                            autoFocus
+                                                        />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">词频: {item.freq}</span>
+                                                )}
+                                                <span className={`inline-flex px-1.5 py-0.5 text-xs rounded border ${item.type === 'user'
+                                                        ? 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                                        : item.type === 'staging'
+                                                            ? 'bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                                                            : 'bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
+                                                    }`}>
+                                                    {item.type === 'user' ? '用户' : item.type === 'staging' ? '暂存' : '基础'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {(item.type === 'user' || item.type === 'staging') && (
+                                        editingWord === item.word ? (
+                                            <div className="flex gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100"
+                                                    onClick={saveEdit}
+                                                >
+                                                    <Check className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:bg-muted"
+                                                    onClick={cancelEdit}
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                    onClick={() => startEdit(item.word, item.freq)}
+                                                >
+                                                    <SquarePen className="w-4 h-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => setDeleteTarget({ type: 'single', word: item.word })}
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* 桌面端表格视图 */}
+                    <div className="hidden md:block border border-border rounded-lg overflow-hidden">
                         <Table>
                             <TableHeader>
                                 <TableRow>
