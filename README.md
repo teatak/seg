@@ -6,6 +6,8 @@
 
 本项目（包括随仓库发布的词典和模型数据）采用 [MIT License](LICENSE)。
 
+提交代码前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)；安全问题请按 [SECURITY.md](SECURITY.md) 私下报告。
+
 ## ✨ 特性
 
 - **基础分词**：双向最大匹配算法 + HMM 处理未登录词
